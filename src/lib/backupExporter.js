@@ -156,12 +156,16 @@ function buildReportHtml(payload) {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Audio Vault Report</title>
+    <link rel="icon" href="./favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png" />
     <style>
       :root { --green: #1db954; --card: #181818; --text: #ffffff; --muted: #b3b3b3; }
       * { box-sizing: border-box; }
       body { margin: 0; font-family: Inter, system-ui, sans-serif; background: linear-gradient(160deg, #101010, #161616); color: var(--text); }
       main { max-width: 1120px; margin: 0 auto; padding: 28px 18px 48px; }
       .hero { padding: 18px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); background: radial-gradient(circle at right top, rgba(29,185,84,.2), transparent 45%), var(--card); }
+      .brand { display: flex; align-items: center; gap: 10px; }
+      .brand img { width: 28px; height: 28px; border-radius: 6px; border: 1px solid rgba(255,255,255,.2); }
       .kicker { color: var(--green); font-size: 12px; letter-spacing: 0.16em; margin: 0; font-weight: 700; }
       h1 { margin: 6px 0; }
       p { color: var(--muted); margin: 0; }
@@ -185,7 +189,10 @@ function buildReportHtml(payload) {
   <body>
     <main>
       <header class="hero">
-        <p class="kicker">AUDIO VAULT LIBRARY REPORT</p>
+        <div class="brand">
+          <img src="./favicon-32x32.png" alt="Audio Vault icon" />
+          <p class="kicker">AUDIO VAULT LIBRARY REPORT</p>
+        </div>
         <h1>${escapeHtml(payload.account.displayName || payload.account.id)}</h1>
         <div class="stats">
           <div class="stat"><div class="label">Followed Artists</div><div class="value">${payload.summary.followedArtists}</div></div>
@@ -301,6 +308,18 @@ export async function exportLibrarySnapshot({ user, likedSongs, savedAlbums, fol
   zip.file('followed_artists.csv', followedArtistsCsv);
   zip.file('saved_albums.csv', savedAlbumsCsv);
   zip.file('liked_songs.csv', likedSongsCsv);
+
+  // Include app favicon assets in the exported package for local report rendering.
+  try {
+    const [ico, png32] = await Promise.all([
+      fetch('/favicon.ico').then((r) => (r.ok ? r.arrayBuffer() : null)),
+      fetch('/favicon-32x32.png').then((r) => (r.ok ? r.arrayBuffer() : null))
+    ]);
+    if (ico) zip.file('favicon.ico', ico);
+    if (png32) zip.file('favicon-32x32.png', png32);
+  } catch {
+    // Favicon inclusion is best-effort; export should still complete without these assets.
+  }
 
   const cleanName = (user.display_name || user.id || 'spotify-user').replace(/[^a-zA-Z0-9_-]/g, '_');
   const stamp = new Date().toISOString().slice(0, 10);

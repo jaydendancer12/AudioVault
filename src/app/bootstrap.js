@@ -19,6 +19,7 @@ function renderShell(appName) {
     <main class="layout">
       <article class="card stack">
         <header class="hero">
+          <img class="brand-icon" src="/favicon-32x32.png" alt="Audio Vault icon" />
           <p class="kicker">AUDIO VAULT</p>
           <h1>${appName}</h1>
           <span id="authBadge" class="badge offline">Disconnected</span>
