@@ -162,7 +162,6 @@ async function gatherLibrarySnapshot(onStatus, onProgress) {
   onProgress(62);
 
   const enrichedPlaylists = [];
-  const skippedPlaylists = [];
   const total = playlists.length || 1;
 
   for (let i = 0; i < playlists.length; i += 1) {
@@ -178,11 +177,21 @@ async function gatherLibrarySnapshot(onStatus, onProgress) {
         public: Boolean(playlist.public),
         collaborative: Boolean(playlist.collaborative),
         owner: playlist.owner?.display_name || playlist.owner?.id || '',
-        tracks
+        tracks,
+        tracksUnavailable: false
       });
     } catch (error) {
       if (error instanceof SpotifyHttpError && error.status === 403) {
-        skippedPlaylists.push({ id: playlist.id, name: playlist.name || 'Unknown Playlist' });
+        enrichedPlaylists.push({
+          id: playlist.id,
+          name: playlist.name || 'Untitled Playlist',
+          description: playlist.description || '',
+          public: Boolean(playlist.public),
+          collaborative: Boolean(playlist.collaborative),
+          owner: playlist.owner?.display_name || playlist.owner?.id || '',
+          tracks: [],
+          tracksUnavailable: true
+        });
       } else {
         throw error;
       }
@@ -197,8 +206,7 @@ async function gatherLibrarySnapshot(onStatus, onProgress) {
     likedSongs,
     followedArtists,
     followedArtistsUnavailable,
-    playlists: enrichedPlaylists,
-    skippedPlaylists
+    playlists: enrichedPlaylists
   };
 }
 
@@ -298,9 +306,10 @@ export async function bootstrap() {
       renderHistory(historyListEl, history);
       setProgress(exportProgressEl, exportProgressTextEl, 100);
 
-      const skippedText =
-        snapshot.skippedPlaylists.length > 0
-          ? ` Skipped restricted playlists: ${snapshot.skippedPlaylists.length}.`
+      const unavailableTracksCount = snapshot.playlists.filter((playlist) => playlist.tracksUnavailable).length;
+      const unavailableTracksText =
+        unavailableTracksCount > 0
+          ? ` ${unavailableTracksCount} playlist(s) were included with metadata but track lists could not be read due to Spotify restrictions.`
           : '';
       const artistsText = snapshot.followedArtistsUnavailable
         ? ' Followed artists were unavailable for this account/app and were omitted.'
@@ -308,7 +317,7 @@ export async function bootstrap() {
 
       setStatus(
         statusEl,
-        `Export complete: ${result.filename}. Liked songs: ${result.summary.likedSongs}, playlists: ${result.summary.playlists}, followed artists: ${result.summary.followedArtists}.${skippedText}${artistsText}`
+        `Export complete: ${result.filename}. Liked songs: ${result.summary.likedSongs}, playlists: ${result.summary.playlists}, followed artists: ${result.summary.followedArtists}.${unavailableTracksText}${artistsText}`
       );
     } catch (error) {
       setStatus(statusEl, `Export failed: ${explainSpotifyError(error)}`);

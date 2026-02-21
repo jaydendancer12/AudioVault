@@ -230,7 +230,6 @@ export async function getAllFollowedArtists() {
         id: artist.id,
         name: artist.name || '',
         genres: artist.genres || [],
-        popularity: artist.popularity || 0,
         spotifyUrl: artist.external_urls?.spotify || ''
       });
     }
@@ -239,19 +238,22 @@ export async function getAllFollowedArtists() {
     after = items[items.length - 1].id;
   }
 
-  // Enrich genres from /artists for consistency; following payload may omit details for some items.
+  // Enrich genres from /artists for consistency; if this fails, keep baseline following payload.
   const enrichedById = new Map();
   const ids = artists.map((artist) => artist.id).filter(Boolean);
   const idGroups = chunk(ids, 50);
   for (const group of idGroups) {
-    const payload = await spotifyFetch(`/artists?ids=${group.join(',')}`);
-    for (const artist of payload?.artists || []) {
-      if (!artist?.id) continue;
-      enrichedById.set(artist.id, {
-        genres: artist.genres || [],
-        popularity: artist.popularity || 0,
-        spotifyUrl: artist.external_urls?.spotify || ''
-      });
+    try {
+      const payload = await spotifyFetch(`/artists?ids=${group.join(',')}`);
+      for (const artist of payload?.artists || []) {
+        if (!artist?.id) continue;
+        enrichedById.set(artist.id, {
+          genres: artist.genres || [],
+          spotifyUrl: artist.external_urls?.spotify || ''
+        });
+      }
+    } catch {
+      // Keep the original followed artists data if enrichment is blocked.
     }
   }
 
@@ -261,7 +263,6 @@ export async function getAllFollowedArtists() {
     return {
       ...artist,
       genres: enriched.genres,
-      popularity: enriched.popularity,
       spotifyUrl: enriched.spotifyUrl
     };
   });

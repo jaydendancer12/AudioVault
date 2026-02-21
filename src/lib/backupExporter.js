@@ -73,14 +73,13 @@ function buildLikedSongsCsv(likedSongs) {
 }
 
 function buildFollowedArtistsCsv(followedArtists) {
-  const rows = [['artist_id', 'name', 'genres', 'popularity', 'spotify_url']];
+  const rows = [['artist_id', 'name', 'genres', 'spotify_url']];
 
   for (const artist of followedArtists) {
     rows.push([
       artist.id,
       artist.name,
       (artist.genres || []).join('; '),
-      artist.popularity,
       artist.spotifyUrl
     ]);
   }
@@ -89,7 +88,7 @@ function buildFollowedArtistsCsv(followedArtists) {
 }
 
 function buildPlaylistsCsv(playlists) {
-  const rows = [['playlist_id', 'name', 'description', 'owner', 'public', 'collaborative', 'track_count']];
+  const rows = [['playlist_id', 'name', 'description', 'owner', 'public', 'collaborative', 'track_count', 'tracks_unavailable']];
 
   for (const playlist of playlists) {
     rows.push([
@@ -99,7 +98,8 @@ function buildPlaylistsCsv(playlists) {
       playlist.owner,
       playlist.public ? 'true' : 'false',
       playlist.collaborative ? 'true' : 'false',
-      playlist.tracks?.length || 0
+      playlist.tracks?.length || 0,
+      playlist.tracksUnavailable ? 'true' : 'false'
     ]);
   }
 
@@ -181,6 +181,7 @@ function buildPlaylistBlocks(payload) {
               <span><strong>Visibility:</strong> ${playlist.public ? 'Public' : 'Private'}</span>
               <span><strong>Collaborative:</strong> ${playlist.collaborative ? 'Yes' : 'No'}</span>
               <span><strong>Track count:</strong> ${playlist.tracks?.length || 0}</span>
+              <span><strong>Tracks available:</strong> ${playlist.tracksUnavailable ? 'No (access restricted)' : 'Yes'}</span>
             </div>
             <p class="desc">${escapeHtml(playlist.description || 'No description')}</p>
           </div>
@@ -231,7 +232,6 @@ function buildReportHtml(payload) {
       <tr>
         <td>${escapeHtml(artist.name)}</td>
         <td>${escapeHtml((artist.genres || []).join(', '))}</td>
-        <td>${artist.popularity || 0}</td>
       </tr>`
     )
     .join('');
@@ -315,7 +315,7 @@ function buildReportHtml(payload) {
         <p class="hint">Showing first 200 artists. Full data is in CSV and JSON files.</p>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Artist</th><th>Genres</th><th>Popularity</th></tr></thead>
+            <thead><tr><th>Artist</th><th>Genres</th></tr></thead>
             <tbody>${artistRows}</tbody>
           </table>
         </div>
