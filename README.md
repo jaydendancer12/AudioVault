@@ -1,3 +1,9 @@
+#Access Notice !IMPORTANT
+
+Audio Vault is currently in active development and pending broader Spotify API access approval.
+Due to new Spotify Web API access restrictions (2026), only allowlisted tester accounts can use live export features at this time.
+Public availability is planned once expanded access is approved.
+
 # Audio Vault
 
 Audio Vault exports your Spotify library into a clean, local backup package so you can keep a readable record of your music data.
