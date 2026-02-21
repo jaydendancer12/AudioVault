@@ -88,6 +88,7 @@ function mapTrack(track) {
     name: track.name || (track.is_local ? 'Local File' : 'Unavailable Track'),
     artists: (track.artists || []).map((artist) => artist.name).filter(Boolean),
     album: track.album?.name || '',
+    coverImage: track.album?.images?.[0]?.url || '',
     releaseDate: track.album?.release_date || '',
     durationMs: track.duration_ms || 0,
     explicit: Boolean(track.explicit),
@@ -136,6 +137,7 @@ export async function getAllSavedAlbumsDetailed() {
         id: album.id,
         name: album.name || '',
         artists: (album.artists || []).map((artist) => artist.name).filter(Boolean),
+        coverImage: album.images?.[0]?.url || '',
         releaseDate: album.release_date || '',
         totalTracks: album.total_tracks || 0,
         albumType: album.album_type || '',
@@ -170,6 +172,7 @@ export async function getAllFollowedArtists() {
       artists.push({
         id: artist.id,
         name: artist.name || '',
+        profileImage: artist.images?.[0]?.url || '',
         spotifyUrl: artist.external_urls?.spotify || ''
       });
     }

@@ -47,9 +47,15 @@ async function sha256Hex(text) {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+function imgTag(src, alt) {
+  const safeAlt = escapeHtml(alt || 'image');
+  if (!src) return '<div class="img-empty">-</div>';
+  return `<img class="media" src="${escapeHtml(src)}" alt="${safeAlt}" loading="lazy" />`;
+}
+
 function buildLikedSongsCsv(likedSongs) {
   const rows = [
-    ['track_id', 'track_uri', 'name', 'artists', 'album', 'release_date', 'duration_ms', 'duration', 'explicit', 'is_local', 'added_at', 'spotify_url']
+    ['track_id', 'track_uri', 'name', 'artists', 'album', 'cover_image', 'release_date', 'duration_ms', 'duration', 'explicit', 'is_local', 'added_at', 'spotify_url']
   ];
 
   for (const track of likedSongs) {
@@ -59,6 +65,7 @@ function buildLikedSongsCsv(likedSongs) {
       track.name,
       (track.artists || []).join('; '),
       track.album,
+      track.coverImage || '',
       track.releaseDate,
       track.durationMs,
       msToMinSec(track.durationMs),
@@ -74,7 +81,7 @@ function buildLikedSongsCsv(likedSongs) {
 
 function buildSavedAlbumsCsv(savedAlbums) {
   const rows = [
-    ['album_id', 'name', 'artists', 'release_date', 'total_tracks', 'album_type', 'added_at', 'spotify_url']
+    ['album_id', 'name', 'artists', 'cover_image', 'release_date', 'total_tracks', 'album_type', 'added_at', 'spotify_url']
   ];
 
   for (const album of savedAlbums) {
@@ -82,6 +89,7 @@ function buildSavedAlbumsCsv(savedAlbums) {
       album.id,
       album.name,
       (album.artists || []).join('; '),
+      album.coverImage || '',
       album.releaseDate,
       album.totalTracks,
       album.albumType,
@@ -94,10 +102,10 @@ function buildSavedAlbumsCsv(savedAlbums) {
 }
 
 function buildFollowedArtistsCsv(followedArtists) {
-  const rows = [['artist_id', 'name', 'spotify_url']];
+  const rows = [['artist_id', 'name', 'profile_image', 'spotify_url']];
 
   for (const artist of followedArtists) {
-    rows.push([artist.id, artist.name, artist.spotifyUrl]);
+    rows.push([artist.id, artist.name, artist.profileImage || '', artist.spotifyUrl]);
   }
 
   return csv(rows);
@@ -109,6 +117,7 @@ function buildReportHtml(payload) {
     .map(
       (track) => `
       <tr>
+        <td>${imgTag(track.coverImage, track.name)}</td>
         <td>${escapeHtml(track.name)}</td>
         <td>${escapeHtml((track.artists || []).join(', '))}</td>
         <td>${escapeHtml(track.album)}</td>
@@ -123,6 +132,7 @@ function buildReportHtml(payload) {
     .map(
       (album) => `
       <tr>
+        <td>${imgTag(album.coverImage, album.name)}</td>
         <td>${escapeHtml(album.name)}</td>
         <td>${escapeHtml((album.artists || []).join(', '))}</td>
         <td>${escapeHtml(album.releaseDate)}</td>
@@ -137,6 +147,7 @@ function buildReportHtml(payload) {
     .map(
       (artist) => `
       <tr>
+        <td>${imgTag(artist.profileImage, artist.name)}</td>
         <td>${escapeHtml(artist.name)}</td>
       </tr>`
     )
@@ -157,8 +168,9 @@ function buildReportHtml(payload) {
       .kicker { color: var(--green); font-size: 12px; letter-spacing: 0.16em; margin: 0; font-weight: 700; }
       h1 { margin: 6px 0; }
       p { color: var(--muted); margin: 0; }
-      .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 14px; }
+      .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
       .stat { padding: 14px; border-radius: 12px; background: #101010; border: 1px solid rgba(255,255,255,.08); }
+      .stat.wide { grid-column: 1 / span 2; }
       .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
       .value { font-size: 26px; font-weight: 700; margin-top: 4px; }
       section { margin-top: 18px; border-radius: 14px; border: 1px solid rgba(255,255,255,.1); background: var(--card); overflow: hidden; }
@@ -166,8 +178,10 @@ function buildReportHtml(payload) {
       .hint { padding: 0 14px 14px; color: var(--muted); font-size: 13px; }
       .table-wrap { overflow: auto; }
       table { width: 100%; border-collapse: collapse; }
-      th, td { padding: 10px 12px; border-top: 1px solid rgba(255,255,255,.08); text-align: left; font-size: 14px; }
+      th, td { padding: 10px 12px; border-top: 1px solid rgba(255,255,255,.08); text-align: left; font-size: 14px; vertical-align: middle; }
       th { position: sticky; top: 0; background: #131313; font-size: 12px; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; }
+      .media { width: 42px; height: 42px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(255,255,255,.12); display: block; }
+      .img-empty { width: 42px; height: 42px; border-radius: 8px; background: #202020; color: #8a8a8a; display: grid; place-items: center; }
       footer { margin-top: 16px; color: var(--muted); font-size: 12px; }
     </style>
   </head>
@@ -180,7 +194,7 @@ function buildReportHtml(payload) {
         <div class="stats">
           <div class="stat"><div class="label">Followed Artists</div><div class="value">${payload.summary.followedArtists}</div></div>
           <div class="stat"><div class="label">Saved Albums</div><div class="value">${payload.summary.savedAlbums}</div></div>
-          <div class="stat"><div class="label">Liked Songs</div><div class="value">${payload.summary.likedSongs}</div></div>
+          <div class="stat wide"><div class="label">Liked Songs</div><div class="value">${payload.summary.likedSongs}</div></div>
         </div>
       </header>
 
@@ -189,7 +203,7 @@ function buildReportHtml(payload) {
         <p class="hint">Showing first 300 artists. Full data is in CSV and JSON files.</p>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Artist</th></tr></thead>
+            <thead><tr><th>Image</th><th>Artist</th></tr></thead>
             <tbody>${artistRows}</tbody>
           </table>
         </div>
@@ -200,7 +214,7 @@ function buildReportHtml(payload) {
         <p class="hint">Showing first 250 albums. Full data is in CSV and JSON files.</p>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Album</th><th>Artists</th><th>Release</th><th>Tracks</th><th>Type</th></tr></thead>
+            <thead><tr><th>Cover</th><th>Album</th><th>Artists</th><th>Release</th><th>Tracks</th><th>Type</th></tr></thead>
             <tbody>${albumRows}</tbody>
           </table>
         </div>
@@ -211,7 +225,7 @@ function buildReportHtml(payload) {
         <p class="hint">Showing first 250 tracks. Full data is in CSV and JSON files.</p>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Track</th><th>Artists</th><th>Album</th><th>Release</th><th>Length</th></tr></thead>
+            <thead><tr><th>Cover</th><th>Track</th><th>Artists</th><th>Album</th><th>Release</th><th>Length</th></tr></thead>
             <tbody>${likedRows}</tbody>
           </table>
         </div>
@@ -238,7 +252,7 @@ export function buildLibrarySnapshotPayload({ user, likedSongs, savedAlbums, fol
   const sortedArtists = [...followedArtists].sort(byNameAsc);
 
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     createdAt: new Date().toISOString(),
     source: 'spotify',
     account: {
