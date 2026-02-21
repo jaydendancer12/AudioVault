@@ -1,11 +1,7 @@
 :root {
   --spotify-green: #1db954;
-  --bg: #121212;
-  --surface: #181818;
-  --surface-2: #101010;
   --text: #ffffff;
   --muted: #b3b3b3;
-  --danger: #f87171;
 }
 
 * {
@@ -24,14 +20,30 @@ body {
 }
 
 .layout {
-  max-width: 1080px;
-  margin: 0 auto;
-  padding: 42px 18px 72px;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.card {
+  width: min(860px, 100%);
+  padding: 28px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(24, 24, 24, 0.97), rgba(16, 16, 16, 0.96));
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 22px 45px rgba(0, 0, 0, 0.34);
+}
+
+.stack > * + * {
+  margin-top: 12px;
 }
 
 .hero {
   display: grid;
   gap: 8px;
+  text-align: center;
+  justify-items: center;
 }
 
 .kicker {
@@ -44,12 +56,13 @@ body {
 
 .hero h1 {
   margin: 0;
-  font-size: clamp(2.05rem, 5vw, 3.1rem);
+  font-size: clamp(2.1rem, 5vw, 3.1rem);
 }
 
 .subtitle {
   margin: 0;
   color: var(--muted);
+  max-width: 680px;
 }
 
 .badge {
@@ -72,60 +85,21 @@ body {
   background: rgba(30, 30, 30, 0.85);
 }
 
-.grid {
-  display: grid;
-  gap: 16px;
-  margin-top: 20px;
-  grid-template-columns: 1fr;
-}
-
-.card {
-  padding: 22px;
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(24, 24, 24, 0.97), rgba(16, 16, 16, 0.96));
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  box-shadow: 0 22px 45px rgba(0, 0, 0, 0.34);
-}
-
-.stack > * + * {
-  margin-top: 12px;
-}
-
 h2 {
   margin: 0;
   font-size: 1.15rem;
+  text-align: center;
 }
 
 .muted {
   margin: 0;
   color: var(--muted);
-}
-
-.field {
-  display: grid;
-  gap: 8px;
-  font-weight: 600;
-}
-
-.field input {
-  width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 12px;
-  background: var(--surface-2);
-  color: var(--text);
-  padding: 12px;
-}
-
-.check-row {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  color: #dfdfdf;
-  font-size: 0.95rem;
+  text-align: center;
 }
 
 .actions {
   display: flex;
+  justify-content: center;
   flex-wrap: wrap;
   gap: 10px;
 }
@@ -133,7 +107,7 @@ h2 {
 .cta {
   border: 0;
   border-radius: 999px;
-  padding: 11px 16px;
+  padding: 11px 18px;
   font-weight: 700;
   cursor: pointer;
   transition: transform 120ms ease, box-shadow 120ms ease;
@@ -186,78 +160,44 @@ h2 {
   margin: 0;
   color: #cfcfcf;
   font-size: 0.85rem;
+  text-align: center;
 }
 
-.status {
+.status.terminal {
   margin: 0;
-  min-height: 88px;
+  min-height: 94px;
   white-space: pre-wrap;
-  padding: 13px;
+  padding: 14px;
   border-radius: 12px;
-  background: #0e0e0e;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #d7d7d7;
-  font-size: 0.9rem;
+  background: #070707;
+  border: 1px solid rgba(29, 185, 84, 0.35);
+  color: #8dffb5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  position: relative;
+  box-shadow: inset 0 0 30px rgba(29, 185, 84, 0.08);
+  animation: statusGlow 2.6s ease-in-out infinite;
 }
 
-.row-between {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+.status.terminal::after {
+  content: "_";
+  margin-left: 2px;
+  animation: blink 1s steps(2, start) infinite;
 }
 
-.small-btn {
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 999px;
-  background: #141414;
-  color: #d2d2d2;
-  padding: 7px 12px;
-  cursor: pointer;
+@keyframes blink {
+  to { opacity: 0; }
 }
 
-.history-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 10px;
-}
-
-.history-item {
-  display: grid;
-  gap: 4px;
-  padding: 11px 12px;
-  border-radius: 12px;
-  background: #121212;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-}
-
-.history-item span {
-  color: #bdbdbd;
-  font-size: 0.86rem;
-}
-
-.history-empty {
-  color: #bdbdbd;
-}
-
-@media (min-width: 760px) {
-  .grid {
-    grid-template-columns: 1fr 1fr;
-  }
+@keyframes statusGlow {
+  0%, 100% { box-shadow: inset 0 0 20px rgba(29, 185, 84, 0.08); }
+  50% { box-shadow: inset 0 0 30px rgba(29, 185, 84, 0.2); }
 }
 
 @media (max-width: 640px) {
-  .sticky-actions {
-    position: sticky;
-    bottom: 8px;
-    z-index: 20;
-    padding: 10px;
-    border-radius: 12px;
-    background: rgba(18, 18, 18, 0.92);
-    backdrop-filter: blur(5px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+  .card {
+    padding: 20px;
   }
 
   .cta {

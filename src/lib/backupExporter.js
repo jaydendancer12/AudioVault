@@ -113,7 +113,6 @@ function buildFollowedArtistsCsv(followedArtists) {
 
 function buildReportHtml(payload) {
   const likedRows = payload.likedSongs
-    .slice(0, 250)
     .map(
       (track) => `
       <tr>
@@ -128,7 +127,6 @@ function buildReportHtml(payload) {
     .join('');
 
   const albumRows = payload.savedAlbums
-    .slice(0, 250)
     .map(
       (album) => `
       <tr>
@@ -143,7 +141,6 @@ function buildReportHtml(payload) {
     .join('');
 
   const artistRows = payload.followedArtists
-    .slice(0, 300)
     .map(
       (artist) => `
       <tr>
@@ -199,8 +196,8 @@ function buildReportHtml(payload) {
       </header>
 
       <section>
-        <h2>Followed Artists (Preview)</h2>
-        <p class="hint">Showing first 300 artists. Full data is in CSV and JSON files.</p>
+        <h2>Followed Artists</h2>
+        <p class="hint">Complete extracted followed artists list.</p>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Image</th><th>Artist</th></tr></thead>
@@ -210,8 +207,8 @@ function buildReportHtml(payload) {
       </section>
 
       <section>
-        <h2>Saved Albums (Preview)</h2>
-        <p class="hint">Showing first 250 albums. Full data is in CSV and JSON files.</p>
+        <h2>Saved Albums</h2>
+        <p class="hint">Complete extracted saved albums list.</p>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Cover</th><th>Album</th><th>Artists</th><th>Release</th><th>Tracks</th><th>Type</th></tr></thead>
@@ -221,8 +218,8 @@ function buildReportHtml(payload) {
       </section>
 
       <section>
-        <h2>Liked Songs (Preview)</h2>
-        <p class="hint">Showing first 250 tracks. Full data is in CSV and JSON files.</p>
+        <h2>Liked Songs</h2>
+        <p class="hint">Complete extracted liked songs list.</p>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Cover</th><th>Track</th><th>Artists</th><th>Album</th><th>Release</th><th>Length</th></tr></thead>
@@ -309,9 +306,8 @@ export async function exportLibrarySnapshot({ user, likedSongs, savedAlbums, fol
   zip.file('saved_albums.csv', savedAlbumsCsv);
   zip.file('liked_songs.csv', likedSongsCsv);
 
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const safeUser = (user.id || 'spotify-user').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const filename = `audio-vault-package-${safeUser}-${stamp}.avault.zip`;
+  const filename = `audiovault-${safeUser}.zip`;
 
   const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
   downloadBlob(filename, blob);
