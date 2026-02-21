@@ -158,6 +158,7 @@ function buildReportHtml(payload) {
     <title>Audio Vault Report</title>
     <link rel="icon" href="./favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./android-chrome-192x192.png" />
     <style>
       :root { --green: #1db954; --card: #181818; --text: #ffffff; --muted: #b3b3b3; }
       * { box-sizing: border-box; }
@@ -165,7 +166,7 @@ function buildReportHtml(payload) {
       main { max-width: 1120px; margin: 0 auto; padding: 28px 18px 48px; }
       .hero { padding: 18px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); background: radial-gradient(circle at right top, rgba(29,185,84,.2), transparent 45%), var(--card); }
       .brand { display: flex; align-items: center; gap: 10px; }
-      .brand img { width: 28px; height: 28px; border-radius: 6px; border: 1px solid rgba(255,255,255,.2); }
+      .brand img { width: 28px; height: 28px; display: block; object-fit: cover; border-radius: 6px; border: 1px solid rgba(255,255,255,.2); }
       .kicker { color: var(--green); font-size: 12px; letter-spacing: 0.16em; margin: 0; font-weight: 700; }
       h1 { margin: 6px 0; }
       p { color: var(--muted); margin: 0; }
@@ -190,7 +191,12 @@ function buildReportHtml(payload) {
     <main>
       <header class="hero">
         <div class="brand">
-          <img src="./favicon-32x32.png" alt="Audio Vault icon" />
+          <img
+            src="./android-chrome-192x192.png"
+            srcset="./favicon-32x32.png 32w, ./android-chrome-192x192.png 192w"
+            sizes="28px"
+            alt="Audio Vault icon"
+          />
           <p class="kicker">AUDIO VAULT LIBRARY REPORT</p>
         </div>
         <h1>${escapeHtml(payload.account.displayName || payload.account.id)}</h1>
@@ -311,12 +317,14 @@ export async function exportLibrarySnapshot({ user, likedSongs, savedAlbums, fol
 
   // Include app favicon assets in the exported package for local report rendering.
   try {
-    const [ico, png32] = await Promise.all([
+    const [ico, png32, png192] = await Promise.all([
       fetch('/favicon.ico').then((r) => (r.ok ? r.arrayBuffer() : null)),
-      fetch('/favicon-32x32.png').then((r) => (r.ok ? r.arrayBuffer() : null))
+      fetch('/favicon-32x32.png').then((r) => (r.ok ? r.arrayBuffer() : null)),
+      fetch('/android-chrome-192x192.png').then((r) => (r.ok ? r.arrayBuffer() : null))
     ]);
     if (ico) zip.file('favicon.ico', ico);
     if (png32) zip.file('favicon-32x32.png', png32);
+    if (png192) zip.file('android-chrome-192x192.png', png192);
   } catch {
     // Favicon inclusion is best-effort; export should still complete without these assets.
   }
