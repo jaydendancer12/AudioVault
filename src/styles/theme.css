@@ -18,28 +18,33 @@ body {
   font-family: "Space Grotesk", "Manrope", system-ui, sans-serif;
   color: var(--text);
   background:
-    radial-gradient(circle at 85% 5%, rgba(29, 185, 84, 0.24), transparent 35%),
-    radial-gradient(circle at 10% 80%, rgba(29, 185, 84, 0.15), transparent 40%),
+    radial-gradient(circle at 88% 8%, rgba(29, 185, 84, 0.26), transparent 38%),
+    radial-gradient(circle at 10% 80%, rgba(29, 185, 84, 0.16), transparent 40%),
     linear-gradient(170deg, #0d0d0d, #121212 48%, #161616);
 }
 
 .layout {
-  max-width: 900px;
+  max-width: 1080px;
   margin: 0 auto;
-  padding: 48px 20px 60px;
+  padding: 42px 18px 72px;
+}
+
+.hero {
+  display: grid;
+  gap: 8px;
 }
 
 .kicker {
   margin: 0;
   color: var(--spotify-green);
-  font-size: 0.76rem;
-  letter-spacing: 0.18em;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
   font-weight: 700;
 }
 
 .hero h1 {
-  margin: 0.25rem 0 0.5rem;
-  font-size: clamp(2rem, 6vw, 3.1rem);
+  margin: 0;
+  font-size: clamp(2.05rem, 5vw, 3.1rem);
 }
 
 .subtitle {
@@ -47,17 +52,48 @@ body {
   color: var(--muted);
 }
 
+.badge {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.badge.online {
+  color: #053015;
+  background: rgba(29, 185, 84, 0.9);
+}
+
+.badge.offline {
+  color: #f0f0f0;
+  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(30, 30, 30, 0.85);
+}
+
+.grid {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+  grid-template-columns: 1fr;
+}
+
 .card {
-  margin-top: 28px;
-  padding: 24px;
+  padding: 22px;
   border-radius: 18px;
-  background: linear-gradient(180deg, rgba(24, 24, 24, 0.96), rgba(16, 16, 16, 0.95));
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 22px 45px rgba(0, 0, 0, 0.35);
+  background: linear-gradient(180deg, rgba(24, 24, 24, 0.97), rgba(16, 16, 16, 0.96));
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 22px 45px rgba(0, 0, 0, 0.34);
 }
 
 .stack > * + * {
-  margin-top: 14px;
+  margin-top: 12px;
+}
+
+h2 {
+  margin: 0;
+  font-size: 1.15rem;
 }
 
 .muted {
@@ -80,6 +116,14 @@ body {
   padding: 12px;
 }
 
+.check-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: #dfdfdf;
+  font-size: 0.95rem;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;
@@ -87,13 +131,19 @@ body {
 }
 
 .cta {
-  border: none;
+  border: 0;
   border-radius: 999px;
   padding: 11px 16px;
   font-weight: 700;
   cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease;
   background: var(--spotify-green);
   color: #03240f;
+}
+
+.cta:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 2px rgba(29, 185, 84, 0.2), 0 8px 20px rgba(29, 185, 84, 0.28);
 }
 
 .cta.ghost {
@@ -111,13 +161,106 @@ body {
   cursor: not-allowed;
 }
 
+.progress-wrap {
+  display: grid;
+  gap: 8px;
+}
+
+.progress-track {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: #0e0e0e;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.progress-fill {
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #11a94a, #1ed760);
+  transition: width 220ms ease;
+}
+
+.progress-text {
+  margin: 0;
+  color: #cfcfcf;
+  font-size: 0.85rem;
+}
+
 .status {
   margin: 0;
-  min-height: 74px;
+  min-height: 88px;
   white-space: pre-wrap;
-  padding: 14px;
+  padding: 13px;
   border-radius: 12px;
   background: #0e0e0e;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #d6d6d6;
+  color: #d7d7d7;
+  font-size: 0.9rem;
+}
+
+.row-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.small-btn {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: #141414;
+  color: #d2d2d2;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+.history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.history-item {
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+  border-radius: 12px;
+  background: #121212;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.history-item span {
+  color: #bdbdbd;
+  font-size: 0.86rem;
+}
+
+.history-empty {
+  color: #bdbdbd;
+}
+
+@media (min-width: 760px) {
+  .grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .sticky-actions {
+    position: sticky;
+    bottom: 8px;
+    z-index: 20;
+    padding: 10px;
+    border-radius: 12px;
+    background: rgba(18, 18, 18, 0.92);
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .cta {
+    flex: 1 1 auto;
+  }
 }

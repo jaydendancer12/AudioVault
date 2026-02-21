@@ -48,5 +48,8 @@ export async function exportEncryptedBackup({ user, likedTrackIds, playlists, pa
   const filename = `audio-vault-${safeUser}-${stamp}.json.enc`;
 
   downloadBlob(filename, JSON.stringify(encrypted, null, 2));
-  return payload.stats;
+  return {
+    filename,
+    stats: payload.stats
+  };
 }
