@@ -184,7 +184,6 @@ export async function getAllFollowedArtists() {
   return artists;
 }
 
-// Legacy exports kept for compatibility with previous code paths.
 export async function getAllLikedTrackIds() {
   const tracks = await getAllLikedTracksDetailed();
   return tracks.map((track) => track.id);

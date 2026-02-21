@@ -315,7 +315,6 @@ export async function exportLibrarySnapshot({ user, likedSongs, savedAlbums, fol
   zip.file('Lists/albums.csv', albumsCsv);
   zip.file('Lists/liked_songs.csv', likedSongsCsv);
 
-  // Include app favicon assets in the exported package for local report rendering.
   try {
     const [ico, png32, png192] = await Promise.all([
       fetch('/favicon.ico').then((r) => (r.ok ? r.arrayBuffer() : null)),
@@ -325,9 +324,7 @@ export async function exportLibrarySnapshot({ user, likedSongs, savedAlbums, fol
     if (ico) zip.file('ignore/favicon.ico', ico);
     if (png32) zip.file('ignore/favicon-32x32.png', png32);
     if (png192) zip.file('ignore/android-chrome-192x192.png', png192);
-  } catch {
-    // Favicon inclusion is best-effort; export should still complete without these assets.
-  }
+  } catch {}
 
   const cleanName = (user.display_name || user.id || 'spotify-user').replace(/[^a-zA-Z0-9_-]/g, '_');
   const stamp = new Date().toISOString().slice(0, 10);
