@@ -7,7 +7,7 @@ It currently exports 3 collections:
 - Saved Albums
 - Liked Songs
 
-[insert screenshot of main app page showing Connect Spotify + Download buttons here]
+<img width="1470" height="812" alt="App" src="https://github.com/user-attachments/assets/c4bd9a77-f1a1-4a8a-b50c-421c74c72fd6" />
 
 ## What Audio Vault does
 1. You connect your Spotify account with OAuth (PKCE).
@@ -15,7 +15,7 @@ It currently exports 3 collections:
 3. It downloads a ZIP package to your device.
 4. You open `index.html` in that ZIP for a visual report, or use the CSV files for spreadsheets/analysis.
 
-[insert screenshot of connected state and terminal status output here]
+<img width="782" height="74" alt="Output" src="https://github.com/user-attachments/assets/d6578a7d-feb7-445c-b276-bb5de1ceb722" />
 
 ## What gets downloaded
 The app downloads a ZIP named like:
@@ -36,7 +36,7 @@ Inside that ZIP:
 CSV files are for Excel/Google Sheets.
 JSON files are for technical/reference use.
 
-[insert screenshot of unzipped folder structure here]
+<img width="532" height="172" alt="Structure" src="https://github.com/user-attachments/assets/5369e538-fbdd-4927-bd33-1b672fb88e85" />
 
 ## How to use the downloaded ZIP
 1. Unzip the downloaded file.
@@ -47,7 +47,8 @@ JSON files are for technical/reference use.
 - Liked Songs
 4. If you need spreadsheet workflows, open files in `Lists/`.
 
-[insert screenshot of index.html report header + stats cards here]
-[insert screenshot of one full table (liked songs) showing images + columns here]
+<img width="1105" height="313" alt="Header" src="https://github.com/user-attachments/assets/e4ded049-846a-4f7e-8c93-eb6bcec9144a" />
+
+<img width="1080" height="754" alt="Liked" src="https://github.com/user-attachments/assets/52ad9bf4-ecf3-4e1d-8605-0ac0728bc5b4" />
 
 ---
