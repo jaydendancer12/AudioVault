@@ -1,4 +1,4 @@
-#Access Notice !IMPORTANT
+# Access Notice !IMPORTANT
 
 Audio Vault is currently in active development and pending broader Spotify API access approval.
 Due to new Spotify Web API access restrictions (2026), only allowlisted tester accounts can use live export features at this time.
