@@ -187,7 +187,6 @@ function buildReportHtml(payload) {
       <header class="hero">
         <p class="kicker">AUDIO VAULT LIBRARY REPORT</p>
         <h1>${escapeHtml(payload.account.displayName || payload.account.id)}</h1>
-        <p>Snapshot generated ${escapeHtml(payload.createdAt)}</p>
         <div class="stats">
           <div class="stat"><div class="label">Followed Artists</div><div class="value">${payload.summary.followedArtists}</div></div>
           <div class="stat"><div class="label">Saved Albums</div><div class="value">${payload.summary.savedAlbums}</div></div>
@@ -197,7 +196,6 @@ function buildReportHtml(payload) {
 
       <section>
         <h2>Followed Artists</h2>
-        <p class="hint">Complete extracted followed artists list.</p>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Image</th><th>Artist</th></tr></thead>
@@ -208,7 +206,6 @@ function buildReportHtml(payload) {
 
       <section>
         <h2>Saved Albums</h2>
-        <p class="hint">Complete extracted saved albums list.</p>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Cover</th><th>Album</th><th>Artists</th><th>Release</th><th>Tracks</th><th>Type</th></tr></thead>
@@ -219,7 +216,6 @@ function buildReportHtml(payload) {
 
       <section>
         <h2>Liked Songs</h2>
-        <p class="hint">Complete extracted liked songs list.</p>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Cover</th><th>Track</th><th>Artists</th><th>Album</th><th>Release</th><th>Length</th></tr></thead>
@@ -306,8 +302,9 @@ export async function exportLibrarySnapshot({ user, likedSongs, savedAlbums, fol
   zip.file('saved_albums.csv', savedAlbumsCsv);
   zip.file('liked_songs.csv', likedSongsCsv);
 
-  const safeUser = (user.id || 'spotify-user').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const filename = `audiovault-${safeUser}.zip`;
+  const cleanName = (user.display_name || user.id || 'spotify-user').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const stamp = new Date().toISOString().slice(0, 10);
+  const filename = `AudioVault_Backup_${cleanName}_${stamp}.zip`;
 
   const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
   downloadBlob(filename, blob);
