@@ -72,7 +72,20 @@ function setProgress(barEl, textEl, percent) {
 function loadHistory() {
   try {
     const parsed = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((entry) => {
+      const summary = entry?.summary || entry?.stats || {};
+      return {
+        createdAt: entry?.createdAt || new Date().toISOString(),
+        fileName: entry?.fileName || 'audio-vault-export',
+        summary: {
+          likedSongs: Number(summary.likedSongs ?? summary.likedCount ?? 0),
+          playlists: Number(summary.playlists ?? summary.playlistCount ?? 0),
+          playlistTracks: Number(summary.playlistTracks ?? summary.playlistTrackCount ?? 0),
+          followedArtists: Number(summary.followedArtists ?? 0)
+        }
+      };
+    });
   } catch {
     return [];
   }
@@ -91,7 +104,7 @@ function renderHistory(listEl, entries) {
   listEl.innerHTML = entries
     .map((entry) => {
       const date = new Date(entry.createdAt).toLocaleString();
-      return `<li class="history-item"><strong>${entry.fileName}</strong><span>${date} • liked ${entry.summary.likedSongs}, playlists ${entry.summary.playlists}, artists ${entry.summary.followedArtists}</span></li>`;
+      return `<li class="history-item"><strong>${entry.fileName}</strong><span>${date} • liked ${entry.summary.likedSongs}, playlists ${entry.summary.playlists}, playlist tracks ${entry.summary.playlistTracks}, artists ${entry.summary.followedArtists}</span></li>`;
     })
     .join('');
 }
