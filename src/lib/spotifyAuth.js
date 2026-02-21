@@ -3,7 +3,6 @@ import { getAppConfig, SPOTIFY_AUTH_BASE } from './config.js';
 const TOKEN_STORAGE_KEY = 'audio_vault_spotify_token';
 const PKCE_VERIFIER_KEY = 'audio_vault_pkce_verifier';
 const OAUTH_STATE_KEY = 'audio_vault_oauth_state';
-const RETURN_TO_KEY = 'audio_vault_return_to';
 
 function randomString(length = 64) {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -51,10 +50,8 @@ export function getStoredToken() {
 function clearAuthEphemeralState() {
   sessionStorage.removeItem(PKCE_VERIFIER_KEY);
   sessionStorage.removeItem(OAUTH_STATE_KEY);
-  sessionStorage.removeItem(RETURN_TO_KEY);
   localStorage.removeItem(PKCE_VERIFIER_KEY);
   localStorage.removeItem(OAUTH_STATE_KEY);
-  localStorage.removeItem(RETURN_TO_KEY);
 }
 
 function setEphemeralState(key, value) {
@@ -64,13 +61,6 @@ function setEphemeralState(key, value) {
 
 function getEphemeralState(key) {
   return sessionStorage.getItem(key) || localStorage.getItem(key);
-}
-
-function sanitizeReturnTo(value) {
-  if (!value || typeof value !== 'string') return '/';
-  if (!value.startsWith('/')) return '/';
-  if (value.startsWith('/callback')) return '/';
-  return value;
 }
 
 export function logout() {
@@ -92,11 +82,9 @@ export async function beginSpotifyLogin() {
   const codeVerifier = randomString(96);
   const codeChallenge = base64UrlEncode(await sha256(codeVerifier));
   const state = randomString(24);
-  const returnTo = sanitizeReturnTo(window.location.pathname || '/');
 
   setEphemeralState(PKCE_VERIFIER_KEY, codeVerifier);
   setEphemeralState(OAUTH_STATE_KEY, state);
-  setEphemeralState(RETURN_TO_KEY, returnTo);
 
   const params = new URLSearchParams({
     response_type: 'code',
@@ -201,13 +189,10 @@ export async function handleOAuthCallbackFromUrl() {
 
   const storedState = getEphemeralState(OAUTH_STATE_KEY);
   const codeVerifier = getEphemeralState(PKCE_VERIFIER_KEY);
-  const returnTo = sanitizeReturnTo(getEphemeralState(RETURN_TO_KEY));
 
   if (!state || !storedState || state !== storedState || !codeVerifier) {
     clearAuthEphemeralState();
-    throw new Error(
-      'OAuth state check failed. Open the app at the same host as your redirect URI (use 127.0.0.1, not localhost), then try again.'
-    );
+    throw new Error('OAuth state check failed. Use the same host as your redirect URI and try again.');
   }
 
   const tokenResponse = await exchangeCodeForToken(code, codeVerifier);
@@ -217,6 +202,5 @@ export async function handleOAuthCallbackFromUrl() {
   url.searchParams.delete('code');
   url.searchParams.delete('state');
   window.history.replaceState({}, document.title, url.pathname);
-  window.location.replace(returnTo);
   return true;
 }
