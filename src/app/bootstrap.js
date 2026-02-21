@@ -23,18 +23,18 @@ function renderShell(appName) {
       <header class="hero">
         <p class="kicker">AUDIO VAULT</p>
         <h1>${appName}</h1>
-        <p class="subtitle">Download an organized local snapshot of your Spotify library data.</p>
+        <p class="subtitle">Download a professional backup package of your Spotify library data.</p>
         <span id="authBadge" class="badge offline">Disconnected</span>
       </header>
 
       <section class="grid">
         <article class="card stack">
-          <h2>Library Snapshot Export</h2>
-          <p class="muted">Exports plain JSON (not encrypted): liked songs, playlists, and followed artists.</p>
+          <h2>Library Package Export</h2>
+          <p class="muted">Exports a Spotify-themed package (.avault.zip) with HTML report, CSVs, and JSON.</p>
 
           <div class="actions sticky-actions">
             <button id="connectBtn" class="cta">Connect Spotify</button>
-            <button id="exportBtn" class="cta ghost" disabled>Export Organized Snapshot</button>
+            <button id="exportBtn" class="cta ghost" disabled>Export Pro Package</button>
             <button id="logoutBtn" class="cta muted-btn" disabled>Logout</button>
           </div>
 
@@ -225,7 +225,7 @@ export async function bootstrap() {
   try {
     const usedCallback = await handleOAuthCallbackFromUrl();
     if (usedCallback) {
-      setStatus(statusEl, 'Spotify connected. Ready to export snapshot.');
+      setStatus(statusEl, 'Spotify connected. Ready to export package.');
     }
   } catch (error) {
     setStatus(statusEl, explainSpotifyError(error));
@@ -262,7 +262,7 @@ export async function bootstrap() {
         (percent) => setProgress(exportProgressEl, exportProgressTextEl, percent)
       );
 
-      setStatus(statusEl, 'Preparing organized JSON export...');
+      setStatus(statusEl, 'Building professional export package...');
       setProgress(exportProgressEl, exportProgressTextEl, 97);
 
       const result = exportLibrarySnapshot({
