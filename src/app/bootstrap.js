@@ -231,6 +231,10 @@ export async function bootstrap() {
     setStatus(statusEl, explainSpotifyError(error));
   }
 
+  if (isAuthenticated() && statusEl.textContent === 'Ready.') {
+    setStatus(statusEl, 'Spotify connected. Ready to export package.');
+  }
+
   connectBtn.addEventListener('click', async () => {
     setStatus(statusEl, 'Redirecting to Spotify login...');
     try {
