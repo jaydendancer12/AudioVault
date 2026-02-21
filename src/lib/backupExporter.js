@@ -156,9 +156,9 @@ function buildReportHtml(payload) {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Audio Vault Report</title>
-    <link rel="icon" href="./favicon.ico" sizes="any" />
-    <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="192x192" href="./android-chrome-192x192.png" />
+    <link rel="icon" href="./ignore/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="./ignore/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./ignore/android-chrome-192x192.png" />
     <style>
       :root { --green: #1db954; --card: #181818; --text: #ffffff; --muted: #b3b3b3; }
       * { box-sizing: border-box; }
@@ -192,12 +192,11 @@ function buildReportHtml(payload) {
       <header class="hero">
         <div class="brand">
           <img
-            src="./android-chrome-192x192.png"
-            srcset="./favicon-32x32.png 32w, ./android-chrome-192x192.png 192w"
+            src="./ignore/android-chrome-192x192.png"
+            srcset="./ignore/favicon-32x32.png 32w, ./ignore/android-chrome-192x192.png 192w"
             sizes="28px"
             alt="Audio Vault icon"
           />
-          <p class="kicker">AUDIO VAULT LIBRARY REPORT</p>
         </div>
         <h1>${escapeHtml(payload.account.displayName || payload.account.id)}</h1>
         <div class="stats">
@@ -282,7 +281,7 @@ export async function exportLibrarySnapshot({ user, likedSongs, savedAlbums, fol
 
   const libraryJson = JSON.stringify(payload, null, 2);
   const likedSongsCsv = buildLikedSongsCsv(payload.likedSongs);
-  const savedAlbumsCsv = buildSavedAlbumsCsv(payload.savedAlbums);
+  const albumsCsv = buildSavedAlbumsCsv(payload.savedAlbums);
   const followedArtistsCsv = buildFollowedArtistsCsv(payload.followedArtists);
   const reportHtml = buildReportHtml(payload);
 
@@ -296,10 +295,11 @@ export async function exportLibrarySnapshot({ user, likedSongs, savedAlbums, fol
     accountId: payload.account.id,
     files: {
       reportHtml: 'index.html',
-      libraryJson: 'library.json',
-      followedArtistsCsv: 'followed_artists.csv',
-      savedAlbumsCsv: 'saved_albums.csv',
-      likedSongsCsv: 'liked_songs.csv'
+      libraryJson: 'ignore/library.json',
+      manifestJson: 'ignore/manifest.json',
+      followedArtistsCsv: 'Lists/followed_artists.csv',
+      albumsCsv: 'Lists/albums.csv',
+      likedSongsCsv: 'Lists/liked_songs.csv'
     },
     summary: payload.summary,
     checksums: {
@@ -309,11 +309,11 @@ export async function exportLibrarySnapshot({ user, likedSongs, savedAlbums, fol
 
   const zip = new JSZip();
   zip.file('index.html', reportHtml);
-  zip.file('manifest.json', JSON.stringify(manifest, null, 2));
-  zip.file('library.json', libraryJson);
-  zip.file('followed_artists.csv', followedArtistsCsv);
-  zip.file('saved_albums.csv', savedAlbumsCsv);
-  zip.file('liked_songs.csv', likedSongsCsv);
+  zip.file('ignore/manifest.json', JSON.stringify(manifest, null, 2));
+  zip.file('ignore/library.json', libraryJson);
+  zip.file('Lists/followed_artists.csv', followedArtistsCsv);
+  zip.file('Lists/albums.csv', albumsCsv);
+  zip.file('Lists/liked_songs.csv', likedSongsCsv);
 
   // Include app favicon assets in the exported package for local report rendering.
   try {
@@ -322,9 +322,9 @@ export async function exportLibrarySnapshot({ user, likedSongs, savedAlbums, fol
       fetch('/favicon-32x32.png').then((r) => (r.ok ? r.arrayBuffer() : null)),
       fetch('/android-chrome-192x192.png').then((r) => (r.ok ? r.arrayBuffer() : null))
     ]);
-    if (ico) zip.file('favicon.ico', ico);
-    if (png32) zip.file('favicon-32x32.png', png32);
-    if (png192) zip.file('android-chrome-192x192.png', png192);
+    if (ico) zip.file('ignore/favicon.ico', ico);
+    if (png32) zip.file('ignore/favicon-32x32.png', png32);
+    if (png192) zip.file('ignore/android-chrome-192x192.png', png192);
   } catch {
     // Favicon inclusion is best-effort; export should still complete without these assets.
   }
