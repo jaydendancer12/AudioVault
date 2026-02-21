@@ -1,0 +1,62 @@
+:root {
+  --spotify-green: #1db954;
+  --bg: #121212;
+  --surface: #181818;
+  --text: #ffffff;
+  --muted: #b3b3b3;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Space Grotesk", "Manrope", system-ui, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top right, rgba(29, 185, 84, 0.25), transparent 45%),
+    linear-gradient(160deg, #0f0f0f, #121212 45%, #161616);
+}
+
+.layout {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 48px 20px;
+}
+
+.hero .kicker {
+  color: var(--spotify-green);
+  letter-spacing: 0.14em;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.hero h1 {
+  margin: 0.2rem 0 0.6rem;
+  font-size: clamp(2rem, 6vw, 3.2rem);
+}
+
+.subtitle {
+  color: var(--muted);
+}
+
+.card {
+  margin-top: 30px;
+  padding: 24px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(24, 24, 24, 0.98), rgba(18, 18, 18, 0.96));
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+}
+
+.cta {
+  margin-top: 14px;
+  border: 0;
+  border-radius: 999px;
+  padding: 11px 18px;
+  font-weight: 700;
+  color: #041a0e;
+  background: var(--spotify-green);
+}

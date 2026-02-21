@@ -1,0 +1,30 @@
+# File Structure
+
+```
+AudioVault/
+  docs/
+    FILE_STRUCTURE.md
+    PROJECT_OUTLINE.md
+  public/
+    manifest.webmanifest
+  src/
+    app/
+      bootstrap.js
+    components/
+    lib/
+      backupExporter.js
+      config.js
+      cryptoVault.js
+      restore.js
+      spotifyApi.js
+      spotifyAuth.js
+    styles/
+      theme.css
+    main.js
+  .env.example
+  .gitignore
+  index.html
+  package.json
+  vite.config.js
+  README.md
+```
