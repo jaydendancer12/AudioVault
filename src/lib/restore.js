@@ -1,2 +1,7 @@
-// TODO: Parse backup file, decrypt, and restore liked songs/playlists
-export const restoreEngine = {};
+import { decryptJsonPayload } from './cryptoVault.js';
+
+export async function parseAndDecryptBackupFile(file, passphrase) {
+  const text = await file.text();
+  const bundle = JSON.parse(text);
+  return decryptJsonPayload(bundle, passphrase);
+}
