@@ -21,14 +21,10 @@ function renderShell(appName) {
         <header class="hero">
           <p class="kicker">AUDIO VAULT</p>
           <h1>${appName}</h1>
-          <p class="subtitle">Export Spotify data into a professional package with Followed Artists, Saved Albums, and Liked Songs.</p>
           <span id="authBadge" class="badge offline">Disconnected</span>
         </header>
 
         <section class="stack">
-          <h2>Export Package</h2>
-          <p class="muted">Generates an audiovault-username.zip with CSV files, JSON, and a full HTML report.</p>
-
           <div class="actions sticky-actions">
             <button id="connectBtn" class="cta">Connect Spotify</button>
             <button id="exportBtn" class="cta ghost" disabled>Download</button>
