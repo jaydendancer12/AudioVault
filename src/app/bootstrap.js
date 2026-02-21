@@ -216,8 +216,8 @@ export async function bootstrap() {
 
   renderHistory(historyListEl, loadHistory());
 
-  if (!cfg.spotifyClientId || !cfg.spotifyRedirectUri) {
-    setStatus(statusEl, 'Missing env configuration. Set VITE_SPOTIFY_CLIENT_ID and VITE_SPOTIFY_REDIRECT_URI.');
+  if (!cfg.spotifyClientId) {
+    setStatus(statusEl, 'Missing env configuration. Set VITE_SPOTIFY_CLIENT_ID.');
     connectBtn.disabled = true;
     return;
   }

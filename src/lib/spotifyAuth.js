@@ -63,6 +63,18 @@ function getEphemeralState(key) {
   return sessionStorage.getItem(key) || localStorage.getItem(key);
 }
 
+function resolveRedirectUri(cfg) {
+  const browserLocal =
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+  if (browserLocal) {
+    return `${window.location.origin}/callback`;
+  }
+
+  return cfg.spotifyRedirectUri;
+}
+
 export function logout() {
   clearAuthEphemeralState();
   localStorage.removeItem(TOKEN_STORAGE_KEY);
@@ -75,7 +87,8 @@ export function isAuthenticated() {
 
 export async function beginSpotifyLogin() {
   const cfg = getAppConfig();
-  if (!cfg.spotifyClientId || !cfg.spotifyRedirectUri) {
+  const redirectUri = resolveRedirectUri(cfg);
+  if (!cfg.spotifyClientId || !redirectUri) {
     throw new Error('Missing Spotify env values. Check .env configuration.');
   }
 
@@ -92,7 +105,7 @@ export async function beginSpotifyLogin() {
     scope: cfg.spotifyScopes.join(' '),
     code_challenge_method: 'S256',
     code_challenge: codeChallenge,
-    redirect_uri: cfg.spotifyRedirectUri,
+    redirect_uri: redirectUri,
     state
   });
 
@@ -101,12 +114,13 @@ export async function beginSpotifyLogin() {
 
 async function exchangeCodeForToken(code, codeVerifier) {
   const cfg = getAppConfig();
+  const redirectUri = resolveRedirectUri(cfg);
 
   const body = new URLSearchParams({
     client_id: cfg.spotifyClientId,
     grant_type: 'authorization_code',
     code,
-    redirect_uri: cfg.spotifyRedirectUri,
+    redirect_uri: redirectUri,
     code_verifier: codeVerifier
   });
 
