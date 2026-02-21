@@ -72,145 +72,38 @@ function buildLikedSongsCsv(likedSongs) {
   return csv(rows);
 }
 
-function buildFollowedArtistsCsv(followedArtists) {
-  const rows = [['artist_id', 'name', 'genres', 'spotify_url']];
-
-  for (const artist of followedArtists) {
-    rows.push([
-      artist.id,
-      artist.name,
-      (artist.genres || []).join('; '),
-      artist.spotifyUrl
-    ]);
-  }
-
-  return csv(rows);
-}
-
-function buildPlaylistsCsv(playlists) {
-  const rows = [['playlist_id', 'name', 'description', 'owner', 'public', 'collaborative', 'track_count', 'tracks_unavailable']];
-
-  for (const playlist of playlists) {
-    rows.push([
-      playlist.id,
-      playlist.name,
-      playlist.description,
-      playlist.owner,
-      playlist.public ? 'true' : 'false',
-      playlist.collaborative ? 'true' : 'false',
-      playlist.tracks?.length || 0,
-      playlist.tracksUnavailable ? 'true' : 'false'
-    ]);
-  }
-
-  return csv(rows);
-}
-
-function buildPlaylistTracksCsv(playlists) {
+function buildSavedAlbumsCsv(savedAlbums) {
   const rows = [
-    [
-      'playlist_id',
-      'playlist_name',
-      'track_position',
-      'track_key',
-      'track_id',
-      'track_uri',
-      'track_name',
-      'artists',
-      'album',
-      'release_date',
-      'duration_ms',
-      'duration',
-      'explicit',
-      'is_local',
-      'added_at',
-      'spotify_url'
-    ]
+    ['album_id', 'name', 'artists', 'release_date', 'total_tracks', 'album_type', 'added_at', 'spotify_url']
   ];
 
-  for (const playlist of playlists) {
-    (playlist.tracks || []).forEach((track, index) => {
-      rows.push([
-        playlist.id,
-        playlist.name,
-        index + 1,
-        track.key || track.id || track.uri || '',
-        track.id,
-        track.uri || '',
-        track.name,
-        (track.artists || []).join('; '),
-        track.album,
-        track.releaseDate,
-        track.durationMs,
-        msToMinSec(track.durationMs),
-        track.explicit ? 'true' : 'false',
-        track.isLocal ? 'true' : 'false',
-        track.addedAt,
-        track.spotifyUrl
-      ]);
-    });
+  for (const album of savedAlbums) {
+    rows.push([
+      album.id,
+      album.name,
+      (album.artists || []).join('; '),
+      album.releaseDate,
+      album.totalTracks,
+      album.albumType,
+      album.addedAt,
+      album.spotifyUrl
+    ]);
   }
 
   return csv(rows);
 }
 
-function buildPlaylistBlocks(payload) {
-  return payload.playlists
-    .map((playlist) => {
-      const tracksRows = (playlist.tracks || [])
-        .map(
-          (track, index) => `
-            <tr>
-              <td>${index + 1}</td>
-              <td>${escapeHtml(track.name)}</td>
-              <td>${escapeHtml((track.artists || []).join(', '))}</td>
-              <td>${escapeHtml(track.album)}</td>
-              <td>${escapeHtml(track.releaseDate)}</td>
-              <td>${msToMinSec(track.durationMs)}</td>
-              <td>${track.isLocal ? 'Local' : 'Spotify'}</td>
-            </tr>`
-        )
-        .join('');
+function buildFollowedArtistsCsv(followedArtists) {
+  const rows = [['artist_id', 'name', 'spotify_url']];
 
-      return `
-        <section class="playlist-block">
-          <div class="playlist-meta">
-            <h3>${escapeHtml(playlist.name)}</h3>
-            <div class="meta-grid">
-              <span><strong>Owner:</strong> ${escapeHtml(playlist.owner)}</span>
-              <span><strong>Visibility:</strong> ${playlist.public ? 'Public' : 'Private'}</span>
-              <span><strong>Collaborative:</strong> ${playlist.collaborative ? 'Yes' : 'No'}</span>
-              <span><strong>Track count:</strong> ${playlist.tracks?.length || 0}</span>
-              <span><strong>Tracks available:</strong> ${playlist.tracksUnavailable ? 'No (access restricted)' : 'Yes'}</span>
-            </div>
-            <p class="desc">${escapeHtml(playlist.description || 'No description')}</p>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr><th>#</th><th>Track</th><th>Artists</th><th>Album</th><th>Release</th><th>Length</th><th>Type</th></tr>
-              </thead>
-              <tbody>${tracksRows || '<tr><td colspan="7">No tracks captured.</td></tr>'}</tbody>
-            </table>
-          </div>
-        </section>`;
-    })
-    .join('');
+  for (const artist of followedArtists) {
+    rows.push([artist.id, artist.name, artist.spotifyUrl]);
+  }
+
+  return csv(rows);
 }
 
 function buildReportHtml(payload) {
-  const playlistRows = payload.playlists
-    .map(
-      (playlist) => `
-      <tr>
-        <td>${escapeHtml(playlist.name)}</td>
-        <td>${escapeHtml(playlist.owner)}</td>
-        <td>${playlist.tracks?.length || 0}</td>
-        <td>${playlist.public ? 'Public' : 'Private'}</td>
-      </tr>`
-    )
-    .join('');
-
   const likedRows = payload.likedSongs
     .slice(0, 250)
     .map(
@@ -225,18 +118,29 @@ function buildReportHtml(payload) {
     )
     .join('');
 
-  const artistRows = payload.followedArtists
-    .slice(0, 200)
+  const albumRows = payload.savedAlbums
+    .slice(0, 250)
     .map(
-      (artist) => `
+      (album) => `
       <tr>
-        <td>${escapeHtml(artist.name)}</td>
-        <td>${escapeHtml((artist.genres || []).join(', '))}</td>
+        <td>${escapeHtml(album.name)}</td>
+        <td>${escapeHtml((album.artists || []).join(', '))}</td>
+        <td>${escapeHtml(album.releaseDate)}</td>
+        <td>${album.totalTracks || 0}</td>
+        <td>${escapeHtml(album.albumType)}</td>
       </tr>`
     )
     .join('');
 
-  const playlistBlocks = buildPlaylistBlocks(payload);
+  const artistRows = payload.followedArtists
+    .slice(0, 300)
+    .map(
+      (artist) => `
+      <tr>
+        <td>${escapeHtml(artist.name)}</td>
+      </tr>`
+    )
+    .join('');
 
   return `<!doctype html>
 <html lang="en">
@@ -245,7 +149,7 @@ function buildReportHtml(payload) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Audio Vault Report</title>
     <style>
-      :root { --green: #1db954; --bg: #121212; --card: #181818; --text: #ffffff; --muted: #b3b3b3; }
+      :root { --green: #1db954; --card: #181818; --text: #ffffff; --muted: #b3b3b3; }
       * { box-sizing: border-box; }
       body { margin: 0; font-family: Inter, system-ui, sans-serif; background: linear-gradient(160deg, #101010, #161616); color: var(--text); }
       main { max-width: 1120px; margin: 0 auto; padding: 28px 18px 48px; }
@@ -259,16 +163,11 @@ function buildReportHtml(payload) {
       .value { font-size: 26px; font-weight: 700; margin-top: 4px; }
       section { margin-top: 18px; border-radius: 14px; border: 1px solid rgba(255,255,255,.1); background: var(--card); overflow: hidden; }
       h2 { margin: 0; padding: 14px 14px 0; }
-      h3 { margin: 0; font-size: 1.1rem; }
       .hint { padding: 0 14px 14px; color: var(--muted); font-size: 13px; }
       .table-wrap { overflow: auto; }
       table { width: 100%; border-collapse: collapse; }
       th, td { padding: 10px 12px; border-top: 1px solid rgba(255,255,255,.08); text-align: left; font-size: 14px; }
       th { position: sticky; top: 0; background: #131313; font-size: 12px; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; }
-      .playlist-block { margin-top: 16px; }
-      .playlist-meta { padding: 14px; border-bottom: 1px solid rgba(255,255,255,.08); background: #141414; }
-      .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; margin-top: 10px; color: var(--muted); font-size: 13px; }
-      .desc { margin-top: 10px; color: var(--muted); font-size: 13px; }
       footer { margin-top: 16px; color: var(--muted); font-size: 12px; }
     </style>
   </head>
@@ -279,25 +178,33 @@ function buildReportHtml(payload) {
         <h1>${escapeHtml(payload.account.displayName || payload.account.id)}</h1>
         <p>Snapshot generated ${escapeHtml(payload.createdAt)}</p>
         <div class="stats">
-          <div class="stat"><div class="label">Liked Songs</div><div class="value">${payload.summary.likedSongs}</div></div>
-          <div class="stat"><div class="label">Playlists</div><div class="value">${payload.summary.playlists}</div></div>
-          <div class="stat"><div class="label">Playlist Tracks</div><div class="value">${payload.summary.playlistTracks}</div></div>
           <div class="stat"><div class="label">Followed Artists</div><div class="value">${payload.summary.followedArtists}</div></div>
+          <div class="stat"><div class="label">Saved Albums</div><div class="value">${payload.summary.savedAlbums}</div></div>
+          <div class="stat"><div class="label">Liked Songs</div><div class="value">${payload.summary.likedSongs}</div></div>
         </div>
       </header>
 
       <section>
-        <h2>Playlist Directory</h2>
-        <p class="hint">Quick overview of all playlists in this snapshot.</p>
+        <h2>Followed Artists (Preview)</h2>
+        <p class="hint">Showing first 300 artists. Full data is in CSV and JSON files.</p>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Name</th><th>Owner</th><th>Tracks</th><th>Visibility</th></tr></thead>
-            <tbody>${playlistRows}</tbody>
+            <thead><tr><th>Artist</th></tr></thead>
+            <tbody>${artistRows}</tbody>
           </table>
         </div>
       </section>
 
-      ${playlistBlocks}
+      <section>
+        <h2>Saved Albums (Preview)</h2>
+        <p class="hint">Showing first 250 albums. Full data is in CSV and JSON files.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Album</th><th>Artists</th><th>Release</th><th>Tracks</th><th>Type</th></tr></thead>
+            <tbody>${albumRows}</tbody>
+          </table>
+        </div>
+      </section>
 
       <section>
         <h2>Liked Songs (Preview)</h2>
@@ -306,17 +213,6 @@ function buildReportHtml(payload) {
           <table>
             <thead><tr><th>Track</th><th>Artists</th><th>Album</th><th>Release</th><th>Length</th></tr></thead>
             <tbody>${likedRows}</tbody>
-          </table>
-        </div>
-      </section>
-
-      <section>
-        <h2>Followed Artists (Preview)</h2>
-        <p class="hint">Showing first 200 artists. Full data is in CSV and JSON files.</p>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Artist</th><th>Genres</th></tr></thead>
-            <tbody>${artistRows}</tbody>
           </table>
         </div>
       </section>
@@ -336,15 +232,13 @@ function downloadBlob(filename, blob) {
   URL.revokeObjectURL(url);
 }
 
-export function buildLibrarySnapshotPayload({ user, likedSongs, playlists, followedArtists }) {
+export function buildLibrarySnapshotPayload({ user, likedSongs, savedAlbums, followedArtists }) {
   const sortedLikedSongs = [...likedSongs].sort(byArtistThenTitleAsc);
+  const sortedSavedAlbums = [...savedAlbums].sort(byNameAsc);
   const sortedArtists = [...followedArtists].sort(byNameAsc);
-  const sortedPlaylists = [...playlists]
-    .map((playlist) => ({ ...playlist, tracks: [...(playlist.tracks || [])] }))
-    .sort(byNameAsc);
 
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     createdAt: new Date().toISOString(),
     source: 'spotify',
     account: {
@@ -353,25 +247,23 @@ export function buildLibrarySnapshotPayload({ user, likedSongs, playlists, follo
       country: user.country || ''
     },
     summary: {
-      likedSongs: sortedLikedSongs.length,
-      playlists: sortedPlaylists.length,
       followedArtists: sortedArtists.length,
-      playlistTracks: sortedPlaylists.reduce((sum, playlist) => sum + (playlist.tracks?.length || 0), 0)
+      savedAlbums: sortedSavedAlbums.length,
+      likedSongs: sortedLikedSongs.length
     },
     followedArtists: sortedArtists,
-    likedSongs: sortedLikedSongs,
-    playlists: sortedPlaylists
+    savedAlbums: sortedSavedAlbums,
+    likedSongs: sortedLikedSongs
   };
 }
 
-export async function exportLibrarySnapshot({ user, likedSongs, playlists, followedArtists }) {
-  const payload = buildLibrarySnapshotPayload({ user, likedSongs, playlists, followedArtists });
+export async function exportLibrarySnapshot({ user, likedSongs, savedAlbums, followedArtists }) {
+  const payload = buildLibrarySnapshotPayload({ user, likedSongs, savedAlbums, followedArtists });
 
   const libraryJson = JSON.stringify(payload, null, 2);
   const likedSongsCsv = buildLikedSongsCsv(payload.likedSongs);
+  const savedAlbumsCsv = buildSavedAlbumsCsv(payload.savedAlbums);
   const followedArtistsCsv = buildFollowedArtistsCsv(payload.followedArtists);
-  const playlistsCsv = buildPlaylistsCsv(payload.playlists);
-  const playlistTracksCsv = buildPlaylistTracksCsv(payload.playlists);
   const reportHtml = buildReportHtml(payload);
 
   const hash = await sha256Hex(libraryJson);
@@ -385,10 +277,9 @@ export async function exportLibrarySnapshot({ user, likedSongs, playlists, follo
     files: {
       reportHtml: 'index.html',
       libraryJson: 'library.json',
-      likedSongsCsv: 'liked_songs.csv',
       followedArtistsCsv: 'followed_artists.csv',
-      playlistsCsv: 'playlists.csv',
-      playlistTracksCsv: 'playlist_tracks.csv'
+      savedAlbumsCsv: 'saved_albums.csv',
+      likedSongsCsv: 'liked_songs.csv'
     },
     summary: payload.summary,
     checksums: {
@@ -400,10 +291,9 @@ export async function exportLibrarySnapshot({ user, likedSongs, playlists, follo
   zip.file('index.html', reportHtml);
   zip.file('manifest.json', JSON.stringify(manifest, null, 2));
   zip.file('library.json', libraryJson);
-  zip.file('liked_songs.csv', likedSongsCsv);
   zip.file('followed_artists.csv', followedArtistsCsv);
-  zip.file('playlists.csv', playlistsCsv);
-  zip.file('playlist_tracks.csv', playlistTracksCsv);
+  zip.file('saved_albums.csv', savedAlbumsCsv);
+  zip.file('liked_songs.csv', likedSongsCsv);
 
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const safeUser = (user.id || 'spotify-user').replace(/[^a-zA-Z0-9_-]/g, '_');

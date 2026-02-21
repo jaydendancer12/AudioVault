@@ -10,9 +10,8 @@ import {
   SpotifyHttpError,
   getAllFollowedArtists,
   getAllLikedTracksDetailed,
-  getAllPlaylists,
-  getCurrentUser,
-  getPlaylistTracksDetailed
+  getAllSavedAlbumsDetailed,
+  getCurrentUser
 } from '../lib/spotifyApi.js';
 
 const HISTORY_KEY = 'audio_vault_backup_history';
@@ -23,14 +22,14 @@ function renderShell(appName) {
       <header class="hero">
         <p class="kicker">AUDIO VAULT</p>
         <h1>${appName}</h1>
-        <p class="subtitle">Download a professional backup package of your Spotify library data.</p>
+        <p class="subtitle">Export only: Followed Artists, Saved Albums, and Liked Songs.</p>
         <span id="authBadge" class="badge offline">Disconnected</span>
       </header>
 
       <section class="grid">
         <article class="card stack">
           <h2>Library Package Export</h2>
-          <p class="muted">Exports a Spotify-themed package (.avault.zip) with HTML report, CSVs, and JSON.</p>
+          <p class="muted">Creates .avault.zip with Followed Artists (1), Saved Albums (2), Liked Songs (3).</p>
 
           <div class="actions sticky-actions">
             <button id="connectBtn" class="cta">Connect Spotify</button>
@@ -79,10 +78,9 @@ function loadHistory() {
         createdAt: entry?.createdAt || new Date().toISOString(),
         fileName: entry?.fileName || 'audio-vault-export',
         summary: {
-          likedSongs: Number(summary.likedSongs ?? summary.likedCount ?? 0),
-          playlists: Number(summary.playlists ?? summary.playlistCount ?? 0),
-          playlistTracks: Number(summary.playlistTracks ?? summary.playlistTrackCount ?? 0),
-          followedArtists: Number(summary.followedArtists ?? 0)
+          followedArtists: Number(summary.followedArtists ?? 0),
+          savedAlbums: Number(summary.savedAlbums ?? 0),
+          likedSongs: Number(summary.likedSongs ?? summary.likedCount ?? 0)
         }
       };
     });
@@ -104,7 +102,7 @@ function renderHistory(listEl, entries) {
   listEl.innerHTML = entries
     .map((entry) => {
       const date = new Date(entry.createdAt).toLocaleString();
-      return `<li class="history-item"><strong>${entry.fileName}</strong><span>${date} • liked ${entry.summary.likedSongs}, playlists ${entry.summary.playlists}, playlist tracks ${entry.summary.playlistTracks}, artists ${entry.summary.followedArtists}</span></li>`;
+      return `<li class="history-item"><strong>${entry.fileName}</strong><span>${date} • artists ${entry.summary.followedArtists}, albums ${entry.summary.savedAlbums}, liked songs ${entry.summary.likedSongs}</span></li>`;
     })
     .join('');
 }
@@ -135,78 +133,26 @@ function explainSpotifyError(error) {
 
 async function gatherLibrarySnapshot(onStatus, onProgress) {
   onStatus('Loading profile...');
-  onProgress(7);
+  onProgress(8);
   const user = await getCurrentUser();
+
+  onStatus('Fetching followed artists...');
+  const followedArtists = await getAllFollowedArtists();
+  onProgress(35);
+
+  onStatus('Fetching saved albums...');
+  const savedAlbums = await getAllSavedAlbumsDetailed();
+  onProgress(68);
 
   onStatus('Fetching liked songs...');
   const likedSongs = await getAllLikedTracksDetailed();
-  onProgress(35);
-
-  onStatus('Fetching followed artists...');
-  let followedArtists = [];
-  let followedArtistsUnavailable = false;
-  try {
-    followedArtists = await getAllFollowedArtists();
-  } catch (error) {
-    if (error instanceof SpotifyHttpError && error.status === 403) {
-      followedArtistsUnavailable = true;
-      onStatus('Followed artists not accessible for this app/user. Continuing export...');
-    } else {
-      throw error;
-    }
-  }
-  onProgress(52);
-
-  onStatus('Fetching playlists...');
-  const playlists = await getAllPlaylists();
-  onProgress(62);
-
-  const enrichedPlaylists = [];
-  const total = playlists.length || 1;
-
-  for (let i = 0; i < playlists.length; i += 1) {
-    const playlist = playlists[i];
-    onStatus(`Fetching playlist tracks ${i + 1}/${playlists.length}: ${playlist.name}`);
-
-    try {
-      const tracks = await getPlaylistTracksDetailed(playlist.id, playlist.tracks?.href || '');
-      enrichedPlaylists.push({
-        id: playlist.id,
-        name: playlist.name || 'Untitled Playlist',
-        description: playlist.description || '',
-        public: Boolean(playlist.public),
-        collaborative: Boolean(playlist.collaborative),
-        owner: playlist.owner?.display_name || playlist.owner?.id || '',
-        tracks,
-        tracksUnavailable: false
-      });
-    } catch (error) {
-      if (error instanceof SpotifyHttpError && error.status === 403) {
-        enrichedPlaylists.push({
-          id: playlist.id,
-          name: playlist.name || 'Untitled Playlist',
-          description: playlist.description || '',
-          public: Boolean(playlist.public),
-          collaborative: Boolean(playlist.collaborative),
-          owner: playlist.owner?.display_name || playlist.owner?.id || '',
-          tracks: [],
-          tracksUnavailable: true
-        });
-      } else {
-        throw error;
-      }
-    }
-
-    const pct = 62 + ((i + 1) / total) * 32;
-    onProgress(pct);
-  }
+  onProgress(95);
 
   return {
     user,
-    likedSongs,
     followedArtists,
-    followedArtistsUnavailable,
-    playlists: enrichedPlaylists
+    savedAlbums,
+    likedSongs
   };
 }
 
@@ -292,9 +238,9 @@ export async function bootstrap() {
 
       const result = await exportLibrarySnapshot({
         user: snapshot.user,
-        likedSongs: snapshot.likedSongs,
-        playlists: snapshot.playlists,
-        followedArtists: snapshot.followedArtists
+        followedArtists: snapshot.followedArtists,
+        savedAlbums: snapshot.savedAlbums,
+        likedSongs: snapshot.likedSongs
       });
 
       const history = pushHistoryEntry({
@@ -306,18 +252,9 @@ export async function bootstrap() {
       renderHistory(historyListEl, history);
       setProgress(exportProgressEl, exportProgressTextEl, 100);
 
-      const unavailableTracksCount = snapshot.playlists.filter((playlist) => playlist.tracksUnavailable).length;
-      const unavailableTracksText =
-        unavailableTracksCount > 0
-          ? ` ${unavailableTracksCount} playlist(s) were included with metadata but track lists could not be read due to Spotify restrictions.`
-          : '';
-      const artistsText = snapshot.followedArtistsUnavailable
-        ? ' Followed artists were unavailable for this account/app and were omitted.'
-        : '';
-
       setStatus(
         statusEl,
-        `Export complete: ${result.filename}. Liked songs: ${result.summary.likedSongs}, playlists: ${result.summary.playlists}, followed artists: ${result.summary.followedArtists}.${unavailableTracksText}${artistsText}`
+        `Export complete: ${result.filename}. Followed artists: ${result.summary.followedArtists}, saved albums: ${result.summary.savedAlbums}, liked songs: ${result.summary.likedSongs}.`
       );
     } catch (error) {
       setStatus(statusEl, `Export failed: ${explainSpotifyError(error)}`);

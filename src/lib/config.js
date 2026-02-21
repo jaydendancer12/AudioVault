@@ -1,7 +1,5 @@
 const DEFAULT_SCOPES = [
   'user-library-read',
-  'playlist-read-private',
-  'playlist-read-collaborative',
   'user-follow-read',
   'user-read-private'
 ];
