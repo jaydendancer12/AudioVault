@@ -265,7 +265,7 @@ export async function bootstrap() {
       setStatus(statusEl, 'Building professional export package...');
       setProgress(exportProgressEl, exportProgressTextEl, 97);
 
-      const result = exportLibrarySnapshot({
+      const result = await exportLibrarySnapshot({
         user: snapshot.user,
         likedSongs: snapshot.likedSongs,
         playlists: snapshot.playlists,

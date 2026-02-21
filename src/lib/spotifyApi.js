@@ -78,16 +78,21 @@ async function spotifyFetch(path, options = {}, attempt = 0) {
 }
 
 function mapTrack(track) {
-  if (!track?.id) return null;
+  if (!track) return null;
+  const key = track.id || track.uri;
+  if (!key) return null;
   return {
-    id: track.id,
-    name: track.name || '',
+    id: track.id || '',
+    uri: track.uri || '',
+    key,
+    name: track.name || (track.is_local ? 'Local File' : 'Unavailable Track'),
     artists: (track.artists || []).map((artist) => artist.name).filter(Boolean),
     album: track.album?.name || '',
     releaseDate: track.album?.release_date || '',
     durationMs: track.duration_ms || 0,
     explicit: Boolean(track.explicit),
-    spotifyUrl: track.external_urls?.spotify || ''
+    spotifyUrl: track.external_urls?.spotify || '',
+    isLocal: Boolean(track.is_local)
   };
 }
 
@@ -139,13 +144,29 @@ export async function getPlaylistTracksDetailed(playlistId) {
 
   while (true) {
     const page = await spotifyFetch(
-      `/playlists/${playlistId}/tracks?fields=items(added_at,track(id,name,artists(name),album(name,release_date),duration_ms,explicit,external_urls(spotify))),next&limit=${limit}&offset=${offset}`
+      `/playlists/${playlistId}/tracks?fields=items(added_at,is_local,track(id,uri,is_local,name,artists(name),album(name,release_date),duration_ms,explicit,external_urls(spotify))),next&limit=${limit}&offset=${offset}`
     );
 
-    for (const item of page.items || []) {
+    for (let i = 0; i < (page.items || []).length; i += 1) {
+      const item = page.items[i];
       const mapped = mapTrack(item?.track);
       if (mapped) {
         tracks.push({ ...mapped, addedAt: item.added_at || '' });
+      } else {
+        tracks.push({
+          id: '',
+          uri: '',
+          key: `unavailable:${playlistId}:${offset + i + 1}`,
+          name: 'Unavailable Track',
+          artists: [],
+          album: '',
+          releaseDate: '',
+          durationMs: 0,
+          explicit: false,
+          spotifyUrl: '',
+          isLocal: Boolean(item?.is_local),
+          addedAt: item?.added_at || ''
+        });
       }
     }
 

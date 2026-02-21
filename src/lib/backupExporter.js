@@ -49,12 +49,13 @@ async function sha256Hex(text) {
 
 function buildLikedSongsCsv(likedSongs) {
   const rows = [
-    ['track_id', 'name', 'artists', 'album', 'release_date', 'duration_ms', 'duration', 'explicit', 'added_at', 'spotify_url']
+    ['track_id', 'track_uri', 'name', 'artists', 'album', 'release_date', 'duration_ms', 'duration', 'explicit', 'is_local', 'added_at', 'spotify_url']
   ];
 
   for (const track of likedSongs) {
     rows.push([
       track.id,
+      track.uri || '',
       track.name,
       (track.artists || []).join('; '),
       track.album,
@@ -62,6 +63,7 @@ function buildLikedSongsCsv(likedSongs) {
       track.durationMs,
       msToMinSec(track.durationMs),
       track.explicit ? 'true' : 'false',
+      track.isLocal ? 'true' : 'false',
       track.addedAt,
       track.spotifyUrl
     ]);
@@ -111,7 +113,9 @@ function buildPlaylistTracksCsv(playlists) {
       'playlist_id',
       'playlist_name',
       'track_position',
+      'track_key',
       'track_id',
+      'track_uri',
       'track_name',
       'artists',
       'album',
@@ -119,6 +123,7 @@ function buildPlaylistTracksCsv(playlists) {
       'duration_ms',
       'duration',
       'explicit',
+      'is_local',
       'added_at',
       'spotify_url'
     ]
@@ -130,7 +135,9 @@ function buildPlaylistTracksCsv(playlists) {
         playlist.id,
         playlist.name,
         index + 1,
+        track.key || track.id || track.uri || '',
         track.id,
+        track.uri || '',
         track.name,
         (track.artists || []).join('; '),
         track.album,
@@ -138,6 +145,7 @@ function buildPlaylistTracksCsv(playlists) {
         track.durationMs,
         msToMinSec(track.durationMs),
         track.explicit ? 'true' : 'false',
+        track.isLocal ? 'true' : 'false',
         track.addedAt,
         track.spotifyUrl
       ]);
@@ -145,6 +153,49 @@ function buildPlaylistTracksCsv(playlists) {
   }
 
   return csv(rows);
+}
+
+function buildPlaylistBlocks(payload) {
+  return payload.playlists
+    .map((playlist) => {
+      const tracksRows = (playlist.tracks || [])
+        .map(
+          (track, index) => `
+            <tr>
+              <td>${index + 1}</td>
+              <td>${escapeHtml(track.name)}</td>
+              <td>${escapeHtml((track.artists || []).join(', '))}</td>
+              <td>${escapeHtml(track.album)}</td>
+              <td>${escapeHtml(track.releaseDate)}</td>
+              <td>${msToMinSec(track.durationMs)}</td>
+              <td>${track.isLocal ? 'Local' : 'Spotify'}</td>
+            </tr>`
+        )
+        .join('');
+
+      return `
+        <section class="playlist-block">
+          <div class="playlist-meta">
+            <h3>${escapeHtml(playlist.name)}</h3>
+            <div class="meta-grid">
+              <span><strong>Owner:</strong> ${escapeHtml(playlist.owner)}</span>
+              <span><strong>Visibility:</strong> ${playlist.public ? 'Public' : 'Private'}</span>
+              <span><strong>Collaborative:</strong> ${playlist.collaborative ? 'Yes' : 'No'}</span>
+              <span><strong>Track count:</strong> ${playlist.tracks?.length || 0}</span>
+            </div>
+            <p class="desc">${escapeHtml(playlist.description || 'No description')}</p>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>#</th><th>Track</th><th>Artists</th><th>Album</th><th>Release</th><th>Length</th><th>Type</th></tr>
+              </thead>
+              <tbody>${tracksRows || '<tr><td colspan="7">No tracks captured.</td></tr>'}</tbody>
+            </table>
+          </div>
+        </section>`;
+    })
+    .join('');
 }
 
 function buildReportHtml(payload) {
@@ -187,6 +238,8 @@ function buildReportHtml(payload) {
     )
     .join('');
 
+  const playlistBlocks = buildPlaylistBlocks(payload);
+
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -208,11 +261,16 @@ function buildReportHtml(payload) {
       .value { font-size: 26px; font-weight: 700; margin-top: 4px; }
       section { margin-top: 18px; border-radius: 14px; border: 1px solid rgba(255,255,255,.1); background: var(--card); overflow: hidden; }
       h2 { margin: 0; padding: 14px 14px 0; }
+      h3 { margin: 0; font-size: 1.1rem; }
       .hint { padding: 0 14px 14px; color: var(--muted); font-size: 13px; }
       .table-wrap { overflow: auto; }
       table { width: 100%; border-collapse: collapse; }
       th, td { padding: 10px 12px; border-top: 1px solid rgba(255,255,255,.08); text-align: left; font-size: 14px; }
       th { position: sticky; top: 0; background: #131313; font-size: 12px; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; }
+      .playlist-block { margin-top: 16px; }
+      .playlist-meta { padding: 14px; border-bottom: 1px solid rgba(255,255,255,.08); background: #141414; }
+      .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; margin-top: 10px; color: var(--muted); font-size: 13px; }
+      .desc { margin-top: 10px; color: var(--muted); font-size: 13px; }
       footer { margin-top: 16px; color: var(--muted); font-size: 12px; }
     </style>
   </head>
@@ -231,8 +289,8 @@ function buildReportHtml(payload) {
       </header>
 
       <section>
-        <h2>Playlists</h2>
-        <p class="hint">Complete list of playlists in this snapshot.</p>
+        <h2>Playlist Directory</h2>
+        <p class="hint">Quick overview of all playlists in this snapshot.</p>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Name</th><th>Owner</th><th>Tracks</th><th>Visibility</th></tr></thead>
@@ -240,6 +298,8 @@ function buildReportHtml(payload) {
           </table>
         </div>
       </section>
+
+      ${playlistBlocks}
 
       <section>
         <h2>Liked Songs (Preview)</h2>
@@ -286,7 +346,7 @@ export function buildLibrarySnapshotPayload({ user, likedSongs, playlists, follo
     .sort(byNameAsc);
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     createdAt: new Date().toISOString(),
     source: 'spotify',
     account: {
