@@ -130,7 +130,18 @@ async function gatherLibrarySnapshot(onStatus, onProgress) {
   onProgress(35);
 
   onStatus('Fetching followed artists...');
-  const followedArtists = await getAllFollowedArtists();
+  let followedArtists = [];
+  let followedArtistsUnavailable = false;
+  try {
+    followedArtists = await getAllFollowedArtists();
+  } catch (error) {
+    if (error instanceof SpotifyHttpError && error.status === 403) {
+      followedArtistsUnavailable = true;
+      onStatus('Followed artists not accessible for this app/user. Continuing export...');
+    } else {
+      throw error;
+    }
+  }
   onProgress(52);
 
   onStatus('Fetching playlists...');
@@ -172,6 +183,7 @@ async function gatherLibrarySnapshot(onStatus, onProgress) {
     user,
     likedSongs,
     followedArtists,
+    followedArtistsUnavailable,
     playlists: enrichedPlaylists,
     skippedPlaylists
   };
@@ -273,10 +285,13 @@ export async function bootstrap() {
         snapshot.skippedPlaylists.length > 0
           ? ` Skipped restricted playlists: ${snapshot.skippedPlaylists.length}.`
           : '';
+      const artistsText = snapshot.followedArtistsUnavailable
+        ? ' Followed artists were unavailable for this account/app and were omitted.'
+        : '';
 
       setStatus(
         statusEl,
-        `Export complete: ${result.filename}. Liked songs: ${result.summary.likedSongs}, playlists: ${result.summary.playlists}, followed artists: ${result.summary.followedArtists}.${skippedText}`
+        `Export complete: ${result.filename}. Liked songs: ${result.summary.likedSongs}, playlists: ${result.summary.playlists}, followed artists: ${result.summary.followedArtists}.${skippedText}${artistsText}`
       );
     } catch (error) {
       setStatus(statusEl, `Export failed: ${explainSpotifyError(error)}`);
