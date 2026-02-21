@@ -3,6 +3,16 @@ import { getValidAccessToken, logout } from './spotifyAuth.js';
 
 const MAX_RETRIES = 5;
 
+export class SpotifyHttpError extends Error {
+  constructor({ status, path, body }) {
+    super(`Spotify API ${status} at ${path}: ${body || 'No body'}`);
+    this.name = 'SpotifyHttpError';
+    this.status = status;
+    this.path = path;
+    this.body = body;
+  }
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -52,7 +62,7 @@ async function spotifyFetch(path, options = {}, attempt = 0) {
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Spotify API error ${response.status}: ${text}`);
+    throw new SpotifyHttpError({ status: response.status, path, body: text });
   }
 
   if (response.status === 204) {
@@ -67,26 +77,43 @@ async function spotifyFetch(path, options = {}, attempt = 0) {
   return response.json();
 }
 
+function mapTrack(track) {
+  if (!track?.id) return null;
+  return {
+    id: track.id,
+    name: track.name || '',
+    artists: (track.artists || []).map((artist) => artist.name).filter(Boolean),
+    album: track.album?.name || '',
+    releaseDate: track.album?.release_date || '',
+    durationMs: track.duration_ms || 0,
+    explicit: Boolean(track.explicit),
+    spotifyUrl: track.external_urls?.spotify || ''
+  };
+}
+
 export async function getCurrentUser() {
   return spotifyFetch('/me');
 }
 
-export async function getAllLikedTrackIds() {
-  const trackIds = [];
+export async function getAllLikedTracksDetailed() {
+  const tracks = [];
   let offset = 0;
   const limit = 50;
 
   while (true) {
     const page = await spotifyFetch(`/me/tracks?limit=${limit}&offset=${offset}`);
     for (const item of page.items || []) {
-      if (item?.track?.id) trackIds.push(item.track.id);
+      const mapped = mapTrack(item?.track);
+      if (mapped) {
+        tracks.push({ ...mapped, addedAt: item.added_at || '' });
+      }
     }
 
     if (!page.next) break;
     offset += limit;
   }
 
-  return trackIds;
+  return tracks;
 }
 
 export async function getAllPlaylists() {
@@ -105,25 +132,71 @@ export async function getAllPlaylists() {
   return playlists;
 }
 
-export async function getPlaylistTrackIds(playlistId) {
-  const ids = [];
+export async function getPlaylistTracksDetailed(playlistId) {
+  const tracks = [];
   let offset = 0;
   const limit = 100;
 
   while (true) {
     const page = await spotifyFetch(
-      `/playlists/${playlistId}/tracks?fields=items(track(id)),next&limit=${limit}&offset=${offset}`
+      `/playlists/${playlistId}/tracks?fields=items(added_at,track(id,name,artists(name),album(name,release_date),duration_ms,explicit,external_urls(spotify))),next&limit=${limit}&offset=${offset}`
     );
 
     for (const item of page.items || []) {
-      if (item?.track?.id) ids.push(item.track.id);
+      const mapped = mapTrack(item?.track);
+      if (mapped) {
+        tracks.push({ ...mapped, addedAt: item.added_at || '' });
+      }
     }
 
     if (!page.next) break;
     offset += limit;
   }
 
-  return ids;
+  return tracks;
+}
+
+export async function getAllFollowedArtists() {
+  const artists = [];
+  let after = null;
+  const limit = 50;
+
+  while (true) {
+    const query = after
+      ? `/me/following?type=artist&limit=${limit}&after=${encodeURIComponent(after)}`
+      : `/me/following?type=artist&limit=${limit}`;
+
+    const payload = await spotifyFetch(query);
+    const page = payload?.artists;
+    const items = page?.items || [];
+
+    for (const artist of items) {
+      if (!artist?.id) continue;
+      artists.push({
+        id: artist.id,
+        name: artist.name || '',
+        genres: artist.genres || [],
+        popularity: artist.popularity || 0,
+        followers: artist.followers?.total || 0,
+        spotifyUrl: artist.external_urls?.spotify || ''
+      });
+    }
+
+    if (!page?.next || items.length === 0) break;
+    after = items[items.length - 1].id;
+  }
+
+  return artists;
+}
+
+export async function getAllLikedTrackIds() {
+  const tracks = await getAllLikedTracksDetailed();
+  return tracks.map((track) => track.id);
+}
+
+export async function getPlaylistTrackIds(playlistId) {
+  const tracks = await getPlaylistTracksDetailed(playlistId);
+  return tracks.map((track) => track.id);
 }
 
 export async function saveLikedTracks(trackIds, onProgress) {
@@ -139,11 +212,7 @@ export async function saveLikedTracks(trackIds, onProgress) {
 
     completed += group.length;
     if (onProgress) {
-      onProgress({
-        completed,
-        total: validTrackIds.length,
-        batchSize: group.length
-      });
+      onProgress({ completed, total: validTrackIds.length, batchSize: group.length });
     }
   }
 }
@@ -151,11 +220,7 @@ export async function saveLikedTracks(trackIds, onProgress) {
 export async function createPlaylist({ userId, name, description = '', isPublic = false }) {
   return spotifyFetch(`/users/${encodeURIComponent(userId)}/playlists`, {
     method: 'POST',
-    body: JSON.stringify({
-      name,
-      description,
-      public: isPublic
-    })
+    body: JSON.stringify({ name, description, public: isPublic })
   });
 }
 
@@ -172,11 +237,7 @@ export async function addTracksToPlaylist(playlistId, trackIds, onProgress) {
 
     completed += group.length;
     if (onProgress) {
-      onProgress({
-        completed,
-        total: uris.length,
-        batchSize: group.length
-      });
+      onProgress({ completed, total: uris.length, batchSize: group.length });
     }
   }
 }

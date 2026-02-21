@@ -1,5 +1,5 @@
 import { getAppConfig } from '../lib/config.js';
-import { exportEncryptedBackup } from '../lib/backupExporter.js';
+import { exportLibrarySnapshot } from '../lib/backupExporter.js';
 import {
   beginSpotifyLogin,
   handleOAuthCallbackFromUrl,
@@ -7,16 +7,13 @@ import {
   logout
 } from '../lib/spotifyAuth.js';
 import {
-  getAllLikedTrackIds,
+  SpotifyHttpError,
+  getAllFollowedArtists,
+  getAllLikedTracksDetailed,
   getAllPlaylists,
   getCurrentUser,
-  getPlaylistTrackIds
+  getPlaylistTracksDetailed
 } from '../lib/spotifyApi.js';
-import {
-  parseAndDecryptBackupFile,
-  restoreFromPayload,
-  validateBackupPayload
-} from '../lib/restore.js';
 
 const HISTORY_KEY = 'audio_vault_backup_history';
 
@@ -26,77 +23,36 @@ function renderShell(appName) {
       <header class="hero">
         <p class="kicker">AUDIO VAULT</p>
         <h1>${appName}</h1>
-        <p class="subtitle">Local-first encrypted Spotify backups with secure restore.</p>
+        <p class="subtitle">Download an organized local snapshot of your Spotify library data.</p>
         <span id="authBadge" class="badge offline">Disconnected</span>
       </header>
 
       <section class="grid">
         <article class="card stack">
-          <h2>Backup</h2>
-          <p class="muted">Export liked songs and playlists to an encrypted local file.</p>
-
-          <label class="field">
-            <span>Backup passphrase (min 8 chars)</span>
-            <input id="backupPassphrase" type="password" minlength="8" placeholder="Strong passphrase" />
-          </label>
+          <h2>Library Snapshot Export</h2>
+          <p class="muted">Exports plain JSON (not encrypted): liked songs, playlists, and followed artists.</p>
 
           <div class="actions sticky-actions">
             <button id="connectBtn" class="cta">Connect Spotify</button>
-            <button id="backupBtn" class="cta ghost" disabled>Create Backup</button>
+            <button id="exportBtn" class="cta ghost" disabled>Export Organized Snapshot</button>
             <button id="logoutBtn" class="cta muted-btn" disabled>Logout</button>
           </div>
 
           <div class="progress-wrap">
-            <div class="progress-track"><div id="backupProgress" class="progress-fill"></div></div>
-            <p id="backupProgressText" class="progress-text">0%</p>
+            <div class="progress-track"><div id="exportProgress" class="progress-fill"></div></div>
+            <p id="exportProgressText" class="progress-text">0%</p>
           </div>
 
-          <pre id="backupStatus" class="status">Ready.</pre>
-        </article>
-
-        <article class="card stack">
-          <h2>Restore</h2>
-          <p class="muted">Decrypt a backup and replay likes/playlists into your Spotify account.</p>
-
-          <label class="field">
-            <span>Encrypted backup file</span>
-            <input id="restoreFile" type="file" accept=".enc,.json,.json.enc" />
-          </label>
-
-          <label class="field">
-            <span>Restore passphrase</span>
-            <input id="restorePassphrase" type="password" minlength="8" placeholder="Passphrase used for backup" />
-          </label>
-
-          <label class="check-row">
-            <input id="reusePlaylists" type="checkbox" checked />
-            <span>Reuse matching playlists (avoid duplicates)</span>
-          </label>
-
-          <label class="check-row">
-            <input id="confirmRestore" type="checkbox" />
-            <span>I understand this can create or modify library content.</span>
-          </label>
-
-          <div class="actions sticky-actions">
-            <button id="restoreBtn" class="cta ghost" disabled>Restore Backup</button>
-          </div>
-
-          <div class="progress-wrap">
-            <div class="progress-track"><div id="restoreProgress" class="progress-fill"></div></div>
-            <p id="restoreProgressText" class="progress-text">0%</p>
-          </div>
-
-          <pre id="restoreStatus" class="status">Ready.</pre>
+          <pre id="status" class="status">Ready.</pre>
         </article>
       </section>
 
       <section class="card stack">
         <div class="row-between">
-          <h2>Local Backup History</h2>
+          <h2>Local Export History</h2>
           <button id="clearHistoryBtn" class="small-btn">Clear</button>
         </div>
-        <p class="muted">Stored in your browser only. No server copies.</p>
+        <p class="muted">History stored in your browser only.</p>
         <ul id="historyList" class="history-list"></ul>
       </section>
     </main>
@@ -128,14 +84,14 @@ function saveHistory(entries) {
 
 function renderHistory(listEl, entries) {
   if (entries.length === 0) {
-    listEl.innerHTML = '<li class="history-empty">No backups yet.</li>';
+    listEl.innerHTML = '<li class="history-empty">No exports yet.</li>';
     return;
   }
 
   listEl.innerHTML = entries
     .map((entry) => {
       const date = new Date(entry.createdAt).toLocaleString();
-      return `<li class="history-item"><strong>${entry.fileName}</strong><span>${date} • liked ${entry.stats.likedCount}, playlists ${entry.stats.playlistCount}</span></li>`;
+      return `<li class="history-item"><strong>${entry.fileName}</strong><span>${date} • liked ${entry.summary.likedSongs}, playlists ${entry.summary.playlists}, artists ${entry.summary.followedArtists}</span></li>`;
     })
     .join('');
 }
@@ -152,39 +108,73 @@ function updateAuthBadge(authBadgeEl, authed) {
   authBadgeEl.className = `badge ${authed ? 'online' : 'offline'}`;
 }
 
-async function gatherFullBackupData(onStatus, onProgress) {
+function explainSpotifyError(error) {
+  if (!(error instanceof SpotifyHttpError)) {
+    return error.message;
+  }
+
+  if (error.status === 403) {
+    return `Spotify denied access at ${error.path}. Re-login and accept all scopes. If it still fails, your app/user access may be restricted in Spotify Dev Mode.`;
+  }
+
+  return error.message;
+}
+
+async function gatherLibrarySnapshot(onStatus, onProgress) {
   onStatus('Loading profile...');
-  onProgress(6);
+  onProgress(7);
   const user = await getCurrentUser();
 
   onStatus('Fetching liked songs...');
-  const likedTrackIds = await getAllLikedTrackIds();
-  onProgress(32);
+  const likedSongs = await getAllLikedTracksDetailed();
+  onProgress(35);
+
+  onStatus('Fetching followed artists...');
+  const followedArtists = await getAllFollowedArtists();
+  onProgress(52);
 
   onStatus('Fetching playlists...');
   const playlists = await getAllPlaylists();
-  onProgress(45);
+  onProgress(62);
 
   const enrichedPlaylists = [];
+  const skippedPlaylists = [];
   const total = playlists.length || 1;
+
   for (let i = 0; i < playlists.length; i += 1) {
     const playlist = playlists[i];
     onStatus(`Fetching playlist tracks ${i + 1}/${playlists.length}: ${playlist.name}`);
 
-    const tracks = await getPlaylistTrackIds(playlist.id);
-    enrichedPlaylists.push({ ...playlist, tracks });
+    try {
+      const tracks = await getPlaylistTracksDetailed(playlist.id);
+      enrichedPlaylists.push({
+        id: playlist.id,
+        name: playlist.name || 'Untitled Playlist',
+        description: playlist.description || '',
+        public: Boolean(playlist.public),
+        collaborative: Boolean(playlist.collaborative),
+        owner: playlist.owner?.display_name || playlist.owner?.id || '',
+        tracks
+      });
+    } catch (error) {
+      if (error instanceof SpotifyHttpError && error.status === 403) {
+        skippedPlaylists.push({ id: playlist.id, name: playlist.name || 'Unknown Playlist' });
+      } else {
+        throw error;
+      }
+    }
 
-    const pct = 45 + ((i + 1) / total) * 45;
+    const pct = 62 + ((i + 1) / total) * 32;
     onProgress(pct);
   }
 
-  return { user, likedTrackIds, playlists: enrichedPlaylists };
-}
-
-function computeRestoreProgress(counts) {
-  const likedPortion = counts.likedTotal > 0 ? counts.likedDone / counts.likedTotal : 1;
-  const playlistPortion = counts.playlistsTotal > 0 ? counts.playlistsDone / counts.playlistsTotal : 1;
-  return (likedPortion * 0.5 + playlistPortion * 0.5) * 100;
+  return {
+    user,
+    likedSongs,
+    followedArtists,
+    playlists: enrichedPlaylists,
+    skippedPlaylists
+  };
 }
 
 export async function bootstrap() {
@@ -193,181 +183,105 @@ export async function bootstrap() {
   root.innerHTML = renderShell(cfg.appName);
 
   const connectBtn = document.getElementById('connectBtn');
-  const backupBtn = document.getElementById('backupBtn');
+  const exportBtn = document.getElementById('exportBtn');
   const logoutBtn = document.getElementById('logoutBtn');
-  const backupPassphraseInput = document.getElementById('backupPassphrase');
-  const backupStatusEl = document.getElementById('backupStatus');
-  const backupProgressEl = document.getElementById('backupProgress');
-  const backupProgressTextEl = document.getElementById('backupProgressText');
-
-  const restoreBtn = document.getElementById('restoreBtn');
-  const restoreFileInput = document.getElementById('restoreFile');
-  const restorePassphraseInput = document.getElementById('restorePassphrase');
-  const restoreAckInput = document.getElementById('confirmRestore');
-  const reusePlaylistsInput = document.getElementById('reusePlaylists');
-  const restoreStatusEl = document.getElementById('restoreStatus');
-  const restoreProgressEl = document.getElementById('restoreProgress');
-  const restoreProgressTextEl = document.getElementById('restoreProgressText');
-
+  const statusEl = document.getElementById('status');
+  const exportProgressEl = document.getElementById('exportProgress');
+  const exportProgressTextEl = document.getElementById('exportProgressText');
   const historyListEl = document.getElementById('historyList');
   const clearHistoryBtn = document.getElementById('clearHistoryBtn');
   const authBadgeEl = document.getElementById('authBadge');
 
-  let backupInFlight = false;
-  let restoreInFlight = false;
+  let exportInFlight = false;
 
   const refreshButtons = () => {
     const authed = isAuthenticated();
-
-    connectBtn.disabled = authed || backupInFlight || restoreInFlight;
-    logoutBtn.disabled = !authed || backupInFlight || restoreInFlight;
-    backupBtn.disabled = !authed || backupInFlight || restoreInFlight;
-
-    const hasFile = Boolean(restoreFileInput.files && restoreFileInput.files[0]);
-    restoreBtn.disabled = !authed || !hasFile || restoreInFlight || backupInFlight;
-
+    connectBtn.disabled = authed || exportInFlight;
+    logoutBtn.disabled = !authed || exportInFlight;
+    exportBtn.disabled = !authed || exportInFlight;
     updateAuthBadge(authBadgeEl, authed);
   };
 
   renderHistory(historyListEl, loadHistory());
 
   if (!cfg.spotifyClientId || !cfg.spotifyRedirectUri) {
-    setStatus(
-      backupStatusEl,
-      'Missing env configuration. Set VITE_SPOTIFY_CLIENT_ID and VITE_SPOTIFY_REDIRECT_URI.'
-    );
+    setStatus(statusEl, 'Missing env configuration. Set VITE_SPOTIFY_CLIENT_ID and VITE_SPOTIFY_REDIRECT_URI.');
     connectBtn.disabled = true;
-    restoreBtn.disabled = true;
     return;
   }
 
   try {
     const usedCallback = await handleOAuthCallbackFromUrl();
     if (usedCallback) {
-      setStatus(backupStatusEl, 'Spotify connected. Ready to create backup.');
-      setStatus(restoreStatusEl, 'Spotify connected. Ready to restore.');
+      setStatus(statusEl, 'Spotify connected. Ready to export snapshot.');
     }
   } catch (error) {
-    setStatus(backupStatusEl, error.message);
+    setStatus(statusEl, explainSpotifyError(error));
   }
 
   connectBtn.addEventListener('click', async () => {
-    setStatus(backupStatusEl, 'Redirecting to Spotify login...');
+    setStatus(statusEl, 'Redirecting to Spotify login...');
     try {
       await beginSpotifyLogin();
     } catch (error) {
-      setStatus(backupStatusEl, error.message);
+      setStatus(statusEl, explainSpotifyError(error));
     }
   });
 
   logoutBtn.addEventListener('click', () => {
     logout();
-    setStatus(backupStatusEl, 'Logged out.');
-    setStatus(restoreStatusEl, 'Logged out.');
+    setStatus(statusEl, 'Logged out.');
     refreshButtons();
   });
-
-  restoreFileInput.addEventListener('change', refreshButtons);
 
   clearHistoryBtn.addEventListener('click', () => {
     saveHistory([]);
     renderHistory(historyListEl, []);
   });
 
-  backupBtn.addEventListener('click', async () => {
-    const passphrase = backupPassphraseInput.value.trim();
-    if (passphrase.length < 8) {
-      setStatus(backupStatusEl, 'Passphrase too short. Use at least 8 characters.');
-      return;
-    }
-
-    backupInFlight = true;
+  exportBtn.addEventListener('click', async () => {
+    exportInFlight = true;
     refreshButtons();
-    setProgress(backupProgressEl, backupProgressTextEl, 2);
+    setProgress(exportProgressEl, exportProgressTextEl, 2);
 
     try {
-      const snapshot = await gatherFullBackupData(
-        (message) => setStatus(backupStatusEl, message),
-        (percent) => setProgress(backupProgressEl, backupProgressTextEl, percent)
+      const snapshot = await gatherLibrarySnapshot(
+        (message) => setStatus(statusEl, message),
+        (percent) => setProgress(exportProgressEl, exportProgressTextEl, percent)
       );
 
-      setStatus(backupStatusEl, 'Encrypting backup...');
-      setProgress(backupProgressEl, backupProgressTextEl, 95);
+      setStatus(statusEl, 'Preparing organized JSON export...');
+      setProgress(exportProgressEl, exportProgressTextEl, 97);
 
-      const result = await exportEncryptedBackup({
+      const result = exportLibrarySnapshot({
         user: snapshot.user,
-        likedTrackIds: snapshot.likedTrackIds,
+        likedSongs: snapshot.likedSongs,
         playlists: snapshot.playlists,
-        passphrase
+        followedArtists: snapshot.followedArtists
       });
 
       const history = pushHistoryEntry({
         createdAt: new Date().toISOString(),
         fileName: result.filename,
-        stats: result.stats
+        summary: result.summary
       });
 
       renderHistory(historyListEl, history);
-      setProgress(backupProgressEl, backupProgressTextEl, 100);
+      setProgress(exportProgressEl, exportProgressTextEl, 100);
+
+      const skippedText =
+        snapshot.skippedPlaylists.length > 0
+          ? ` Skipped restricted playlists: ${snapshot.skippedPlaylists.length}.`
+          : '';
+
       setStatus(
-        backupStatusEl,
-        `Backup saved as ${result.filename}. Liked songs: ${result.stats.likedCount}, playlists: ${result.stats.playlistCount}, playlist tracks: ${result.stats.playlistTrackCount}.`
+        statusEl,
+        `Export complete: ${result.filename}. Liked songs: ${result.summary.likedSongs}, playlists: ${result.summary.playlists}, followed artists: ${result.summary.followedArtists}.${skippedText}`
       );
     } catch (error) {
-      setStatus(backupStatusEl, `Backup failed: ${error.message}`);
+      setStatus(statusEl, `Export failed: ${explainSpotifyError(error)}`);
     } finally {
-      backupInFlight = false;
-      refreshButtons();
-    }
-  });
-
-  restoreBtn.addEventListener('click', async () => {
-    const file = restoreFileInput.files?.[0];
-    const passphrase = restorePassphraseInput.value.trim();
-
-    if (!file) {
-      setStatus(restoreStatusEl, 'Choose an encrypted backup file first.');
-      return;
-    }
-
-    if (passphrase.length < 8) {
-      setStatus(restoreStatusEl, 'Restore passphrase must be at least 8 characters.');
-      return;
-    }
-
-    if (!restoreAckInput.checked) {
-      setStatus(restoreStatusEl, 'Check the confirmation box before restore.');
-      return;
-    }
-
-    restoreInFlight = true;
-    refreshButtons();
-    setProgress(restoreProgressEl, restoreProgressTextEl, 4);
-
-    try {
-      setStatus(restoreStatusEl, 'Decrypting backup...');
-      const payload = await parseAndDecryptBackupFile(file, passphrase);
-      validateBackupPayload(payload);
-      setProgress(restoreProgressEl, restoreProgressTextEl, 14);
-
-      const summary = await restoreFromPayload(payload, {
-        reuseExistingPlaylists: reusePlaylistsInput.checked,
-        onProgress: (message) => setStatus(restoreStatusEl, message),
-        onCounts: (counts) => {
-          const pct = 14 + computeRestoreProgress(counts) * 0.86;
-          setProgress(restoreProgressEl, restoreProgressTextEl, pct);
-        }
-      });
-
-      setProgress(restoreProgressEl, restoreProgressTextEl, 100);
-      setStatus(
-        restoreStatusEl,
-        `Restore complete. Liked restored: ${summary.likedRestored}, playlists created: ${summary.createdPlaylists}, playlists reused: ${summary.reusedPlaylists}, tracks added: ${summary.tracksAdded}.`
-      );
-    } catch (error) {
-      setStatus(restoreStatusEl, `Restore failed: ${error.message}`);
-    } finally {
-      restoreInFlight = false;
+      exportInFlight = false;
       refreshButtons();
     }
   });
