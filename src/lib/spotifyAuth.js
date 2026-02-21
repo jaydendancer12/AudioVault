@@ -50,6 +50,29 @@ export function getStoredToken() {
 function clearAuthEphemeralState() {
   sessionStorage.removeItem(PKCE_VERIFIER_KEY);
   sessionStorage.removeItem(OAUTH_STATE_KEY);
+  localStorage.removeItem(PKCE_VERIFIER_KEY);
+  localStorage.removeItem(OAUTH_STATE_KEY);
+}
+
+function setEphemeralState(key, value) {
+  sessionStorage.setItem(key, value);
+  localStorage.setItem(key, value);
+}
+
+function getEphemeralState(key) {
+  return sessionStorage.getItem(key) || localStorage.getItem(key);
+}
+
+function resolveRedirectUri(cfg) {
+  const browserLocal =
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+  if (browserLocal) {
+    return `${window.location.origin}/callback`;
+  }
+
+  return cfg.spotifyRedirectUri;
 }
 
 export function logout() {
@@ -64,7 +87,8 @@ export function isAuthenticated() {
 
 export async function beginSpotifyLogin() {
   const cfg = getAppConfig();
-  if (!cfg.spotifyClientId || !cfg.spotifyRedirectUri) {
+  const redirectUri = resolveRedirectUri(cfg);
+  if (!cfg.spotifyClientId || !redirectUri) {
     throw new Error('Missing Spotify env values. Check .env configuration.');
   }
 
@@ -72,8 +96,8 @@ export async function beginSpotifyLogin() {
   const codeChallenge = base64UrlEncode(await sha256(codeVerifier));
   const state = randomString(24);
 
-  sessionStorage.setItem(PKCE_VERIFIER_KEY, codeVerifier);
-  sessionStorage.setItem(OAUTH_STATE_KEY, state);
+  setEphemeralState(PKCE_VERIFIER_KEY, codeVerifier);
+  setEphemeralState(OAUTH_STATE_KEY, state);
 
   const params = new URLSearchParams({
     response_type: 'code',
@@ -81,7 +105,7 @@ export async function beginSpotifyLogin() {
     scope: cfg.spotifyScopes.join(' '),
     code_challenge_method: 'S256',
     code_challenge: codeChallenge,
-    redirect_uri: cfg.spotifyRedirectUri,
+    redirect_uri: redirectUri,
     state
   });
 
@@ -90,12 +114,13 @@ export async function beginSpotifyLogin() {
 
 async function exchangeCodeForToken(code, codeVerifier) {
   const cfg = getAppConfig();
+  const redirectUri = resolveRedirectUri(cfg);
 
   const body = new URLSearchParams({
     client_id: cfg.spotifyClientId,
     grant_type: 'authorization_code',
     code,
-    redirect_uri: cfg.spotifyRedirectUri,
+    redirect_uri: redirectUri,
     code_verifier: codeVerifier
   });
 
@@ -176,8 +201,8 @@ export async function handleOAuthCallbackFromUrl() {
     return false;
   }
 
-  const storedState = sessionStorage.getItem(OAUTH_STATE_KEY);
-  const codeVerifier = sessionStorage.getItem(PKCE_VERIFIER_KEY);
+  const storedState = getEphemeralState(OAUTH_STATE_KEY);
+  const codeVerifier = getEphemeralState(PKCE_VERIFIER_KEY);
 
   if (!state || !storedState || state !== storedState || !codeVerifier) {
     clearAuthEphemeralState();
