@@ -8,7 +8,6 @@ import {
 } from '../lib/spotifyAuth.js';
 import {
   SpotifyHttpError,
-  getAllFollowedArtists,
   getAllLikedTracksDetailed,
   getAllPlaylists,
   getCurrentUser,
@@ -91,7 +90,7 @@ function renderHistory(listEl, entries) {
   listEl.innerHTML = entries
     .map((entry) => {
       const date = new Date(entry.createdAt).toLocaleString();
-      return `<li class="history-item"><strong>${entry.fileName}</strong><span>${date} • liked ${entry.summary.likedSongs}, playlists ${entry.summary.playlists}, artists ${entry.summary.followedArtists}</span></li>`;
+      return `<li class="history-item"><strong>${entry.fileName}</strong><span>${date} • liked ${entry.summary.likedSongs}, playlists ${entry.summary.playlists}, playlist tracks ${entry.summary.playlistTracks}</span></li>`;
     })
     .join('');
 }
@@ -122,31 +121,16 @@ function explainSpotifyError(error) {
 
 async function gatherLibrarySnapshot(onStatus, onProgress) {
   onStatus('Loading profile...');
-  onProgress(7);
+  onProgress(8);
   const user = await getCurrentUser();
 
   onStatus('Fetching liked songs...');
   const likedSongs = await getAllLikedTracksDetailed();
   onProgress(35);
 
-  onStatus('Fetching followed artists...');
-  let followedArtists = [];
-  let followedArtistsUnavailable = false;
-  try {
-    followedArtists = await getAllFollowedArtists();
-  } catch (error) {
-    if (error instanceof SpotifyHttpError && error.status === 403) {
-      followedArtistsUnavailable = true;
-      onStatus('Followed artists not accessible for this app/user. Continuing export...');
-    } else {
-      throw error;
-    }
-  }
-  onProgress(52);
-
   onStatus('Fetching playlists...');
   const playlists = await getAllPlaylists();
-  onProgress(62);
+  onProgress(52);
 
   const enrichedPlaylists = [];
   const skippedPlaylists = [];
@@ -154,7 +138,7 @@ async function gatherLibrarySnapshot(onStatus, onProgress) {
 
   for (let i = 0; i < playlists.length; i += 1) {
     const playlist = playlists[i];
-    onStatus(`Fetching playlist tracks ${i + 1}/${playlists.length}: ${playlist.name}`);
+    onStatus(`Fetching playlist tracks ${i + 1}/${playlists.length}: ${playlist.name || 'Untitled Playlist'}`);
 
     try {
       const tracks = await getPlaylistTracksDetailed(playlist.id);
@@ -175,15 +159,13 @@ async function gatherLibrarySnapshot(onStatus, onProgress) {
       }
     }
 
-    const pct = 62 + ((i + 1) / total) * 32;
+    const pct = 52 + ((i + 1) / total) * 42;
     onProgress(pct);
   }
 
   return {
     user,
     likedSongs,
-    followedArtists,
-    followedArtistsUnavailable,
     playlists: enrichedPlaylists,
     skippedPlaylists
   };
@@ -265,11 +247,10 @@ export async function bootstrap() {
       setStatus(statusEl, 'Building professional export package...');
       setProgress(exportProgressEl, exportProgressTextEl, 97);
 
-      const result = exportLibrarySnapshot({
+      const result = await exportLibrarySnapshot({
         user: snapshot.user,
         likedSongs: snapshot.likedSongs,
-        playlists: snapshot.playlists,
-        followedArtists: snapshot.followedArtists
+        playlists: snapshot.playlists
       });
 
       const history = pushHistoryEntry({
@@ -285,13 +266,10 @@ export async function bootstrap() {
         snapshot.skippedPlaylists.length > 0
           ? ` Skipped restricted playlists: ${snapshot.skippedPlaylists.length}.`
           : '';
-      const artistsText = snapshot.followedArtistsUnavailable
-        ? ' Followed artists were unavailable for this account/app and were omitted.'
-        : '';
 
       setStatus(
         statusEl,
-        `Export complete: ${result.filename}. Liked songs: ${result.summary.likedSongs}, playlists: ${result.summary.playlists}, followed artists: ${result.summary.followedArtists}.${skippedText}${artistsText}`
+        `Export complete: ${result.filename}. Liked songs: ${result.summary.likedSongs}, playlists: ${result.summary.playlists}, playlist tracks: ${result.summary.playlistTracks}.${skippedText}`
       );
     } catch (error) {
       setStatus(statusEl, `Export failed: ${explainSpotifyError(error)}`);
