@@ -78,21 +78,16 @@ async function spotifyFetch(path, options = {}, attempt = 0) {
 }
 
 function mapTrack(track) {
-  if (!track) return null;
-  const identifier = track.id || track.uri;
-  if (!identifier) return null;
+  if (!track?.id) return null;
   return {
-    id: track.id || '',
-    uri: track.uri || '',
-    key: identifier,
-    name: track.name || (track.is_local ? 'Local File' : 'Unavailable Track'),
+    id: track.id,
+    name: track.name || '',
     artists: (track.artists || []).map((artist) => artist.name).filter(Boolean),
     album: track.album?.name || '',
     releaseDate: track.album?.release_date || '',
     durationMs: track.duration_ms || 0,
     explicit: Boolean(track.explicit),
-    spotifyUrl: track.external_urls?.spotify || '',
-    isLocal: Boolean(track.is_local)
+    spotifyUrl: track.external_urls?.spotify || ''
   };
 }
 
@@ -144,29 +139,13 @@ export async function getPlaylistTracksDetailed(playlistId) {
 
   while (true) {
     const page = await spotifyFetch(
-      `/playlists/${playlistId}/tracks?fields=items(added_at,is_local,track(id,uri,is_local,name,artists(name),album(name,release_date),duration_ms,explicit,external_urls(spotify))),next&limit=${limit}&offset=${offset}`
+      `/playlists/${playlistId}/tracks?fields=items(added_at,track(id,name,artists(name),album(name,release_date),duration_ms,explicit,external_urls(spotify))),next&limit=${limit}&offset=${offset}`
     );
 
-    for (let idx = 0; idx < (page.items || []).length; idx += 1) {
-      const item = page.items[idx];
+    for (const item of page.items || []) {
       const mapped = mapTrack(item?.track);
       if (mapped) {
         tracks.push({ ...mapped, addedAt: item.added_at || '' });
-      } else {
-        tracks.push({
-          id: '',
-          uri: '',
-          key: `unavailable:${playlistId}:${offset + idx + 1}`,
-          name: 'Unavailable Track',
-          artists: [],
-          album: '',
-          releaseDate: '',
-          durationMs: 0,
-          explicit: false,
-          spotifyUrl: '',
-          isLocal: Boolean(item?.is_local),
-          addedAt: item?.added_at || ''
-        });
       }
     }
 
@@ -175,6 +154,39 @@ export async function getPlaylistTracksDetailed(playlistId) {
   }
 
   return tracks;
+}
+
+export async function getAllFollowedArtists() {
+  const artists = [];
+  let after = null;
+  const limit = 50;
+
+  while (true) {
+    const query = after
+      ? `/me/following?type=artist&limit=${limit}&after=${encodeURIComponent(after)}`
+      : `/me/following?type=artist&limit=${limit}`;
+
+    const payload = await spotifyFetch(query);
+    const page = payload?.artists;
+    const items = page?.items || [];
+
+    for (const artist of items) {
+      if (!artist?.id) continue;
+      artists.push({
+        id: artist.id,
+        name: artist.name || '',
+        genres: artist.genres || [],
+        popularity: artist.popularity || 0,
+        followers: artist.followers?.total || 0,
+        spotifyUrl: artist.external_urls?.spotify || ''
+      });
+    }
+
+    if (!page?.next || items.length === 0) break;
+    after = items[items.length - 1].id;
+  }
+
+  return artists;
 }
 
 export async function getAllLikedTrackIds() {

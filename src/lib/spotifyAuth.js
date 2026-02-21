@@ -50,17 +50,6 @@ export function getStoredToken() {
 function clearAuthEphemeralState() {
   sessionStorage.removeItem(PKCE_VERIFIER_KEY);
   sessionStorage.removeItem(OAUTH_STATE_KEY);
-  localStorage.removeItem(PKCE_VERIFIER_KEY);
-  localStorage.removeItem(OAUTH_STATE_KEY);
-}
-
-function setEphemeralState(key, value) {
-  sessionStorage.setItem(key, value);
-  localStorage.setItem(key, value);
-}
-
-function getEphemeralState(key) {
-  return sessionStorage.getItem(key) || localStorage.getItem(key);
 }
 
 export function logout() {
@@ -83,8 +72,8 @@ export async function beginSpotifyLogin() {
   const codeChallenge = base64UrlEncode(await sha256(codeVerifier));
   const state = randomString(24);
 
-  setEphemeralState(PKCE_VERIFIER_KEY, codeVerifier);
-  setEphemeralState(OAUTH_STATE_KEY, state);
+  sessionStorage.setItem(PKCE_VERIFIER_KEY, codeVerifier);
+  sessionStorage.setItem(OAUTH_STATE_KEY, state);
 
   const params = new URLSearchParams({
     response_type: 'code',
@@ -187,12 +176,12 @@ export async function handleOAuthCallbackFromUrl() {
     return false;
   }
 
-  const storedState = getEphemeralState(OAUTH_STATE_KEY);
-  const codeVerifier = getEphemeralState(PKCE_VERIFIER_KEY);
+  const storedState = sessionStorage.getItem(OAUTH_STATE_KEY);
+  const codeVerifier = sessionStorage.getItem(PKCE_VERIFIER_KEY);
 
   if (!state || !storedState || state !== storedState || !codeVerifier) {
     clearAuthEphemeralState();
-    throw new Error('OAuth state check failed. Use the same host as your redirect URI and try again.');
+    throw new Error('OAuth state check failed. Please try logging in again.');
   }
 
   const tokenResponse = await exchangeCodeForToken(code, codeVerifier);
