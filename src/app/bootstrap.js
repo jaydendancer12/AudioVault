@@ -27,7 +27,7 @@ function renderShell(appName) {
 
         <section class="stack">
           <h2>Export Package</h2>
-          <p class="muted">Generates an `audiovault-username.zip` with CSV files, JSON, and a full HTML report.</p>
+          <p class="muted">Generates an audiovault-username.zip with CSV files, JSON, and a full HTML report.</p>
 
           <div class="actions sticky-actions">
             <button id="connectBtn" class="cta">Connect Spotify</button>
