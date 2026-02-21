@@ -33,6 +33,15 @@ function chunk(items, size) {
   return out;
 }
 
+function toApiPath(urlOrPath) {
+  if (!urlOrPath) return '';
+  if (urlOrPath.startsWith('/')) return urlOrPath;
+  if (urlOrPath.startsWith(SPOTIFY_API_BASE)) {
+    return urlOrPath.slice(SPOTIFY_API_BASE.length);
+  }
+  return urlOrPath;
+}
+
 async function spotifyFetch(path, options = {}, attempt = 0) {
   const token = await getValidAccessToken();
   const response = await fetch(`${SPOTIFY_API_BASE}${path}`, {
@@ -137,15 +146,39 @@ export async function getAllPlaylists() {
   return playlists;
 }
 
-export async function getPlaylistTracksDetailed(playlistId) {
+async function fetchPlaylistTracksPage(playlistId, offset, limit, tracksHref) {
+  const primaryPath = `/playlists/${playlistId}/tracks?fields=items(added_at,is_local,track(id,uri,is_local,name,artists(name),album(name,release_date),duration_ms,explicit,external_urls(spotify))),next&limit=${limit}&offset=${offset}`;
+  try {
+    return await spotifyFetch(primaryPath);
+  } catch (error) {
+    if (!(error instanceof SpotifyHttpError) || error.status !== 403) {
+      throw error;
+    }
+  }
+
+  if (tracksHref) {
+    const separator = tracksHref.includes('?') ? '&' : '?';
+    const fallbackHref = `${tracksHref}${separator}limit=${limit}&offset=${offset}`;
+    try {
+      return await spotifyFetch(toApiPath(fallbackHref));
+    } catch (error) {
+      if (!(error instanceof SpotifyHttpError) || error.status !== 403) {
+        throw error;
+      }
+    }
+  }
+
+  const minimalFallbackPath = `/playlists/${playlistId}/tracks?limit=${limit}&offset=${offset}`;
+  return spotifyFetch(minimalFallbackPath);
+}
+
+export async function getPlaylistTracksDetailed(playlistId, tracksHref = '') {
   const tracks = [];
   let offset = 0;
   const limit = 100;
 
   while (true) {
-    const page = await spotifyFetch(
-      `/playlists/${playlistId}/tracks?fields=items(added_at,is_local,track(id,uri,is_local,name,artists(name),album(name,release_date),duration_ms,explicit,external_urls(spotify))),next&limit=${limit}&offset=${offset}`
-    );
+    const page = await fetchPlaylistTracksPage(playlistId, offset, limit, tracksHref);
 
     for (let i = 0; i < (page.items || []).length; i += 1) {
       const item = page.items[i];
@@ -198,7 +231,6 @@ export async function getAllFollowedArtists() {
         name: artist.name || '',
         genres: artist.genres || [],
         popularity: artist.popularity || 0,
-        followers: artist.followers?.total || 0,
         spotifyUrl: artist.external_urls?.spotify || ''
       });
     }
@@ -207,7 +239,32 @@ export async function getAllFollowedArtists() {
     after = items[items.length - 1].id;
   }
 
-  return artists;
+  // Enrich genres from /artists for consistency; following payload may omit details for some items.
+  const enrichedById = new Map();
+  const ids = artists.map((artist) => artist.id).filter(Boolean);
+  const idGroups = chunk(ids, 50);
+  for (const group of idGroups) {
+    const payload = await spotifyFetch(`/artists?ids=${group.join(',')}`);
+    for (const artist of payload?.artists || []) {
+      if (!artist?.id) continue;
+      enrichedById.set(artist.id, {
+        genres: artist.genres || [],
+        popularity: artist.popularity || 0,
+        spotifyUrl: artist.external_urls?.spotify || ''
+      });
+    }
+  }
+
+  return artists.map((artist) => {
+    const enriched = enrichedById.get(artist.id);
+    if (!enriched) return artist;
+    return {
+      ...artist,
+      genres: enriched.genres,
+      popularity: enriched.popularity,
+      spotifyUrl: enriched.spotifyUrl
+    };
+  });
 }
 
 export async function getAllLikedTrackIds() {

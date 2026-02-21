@@ -170,7 +170,7 @@ async function gatherLibrarySnapshot(onStatus, onProgress) {
     onStatus(`Fetching playlist tracks ${i + 1}/${playlists.length}: ${playlist.name}`);
 
     try {
-      const tracks = await getPlaylistTracksDetailed(playlist.id);
+      const tracks = await getPlaylistTracksDetailed(playlist.id, playlist.tracks?.href || '');
       enrichedPlaylists.push({
         id: playlist.id,
         name: playlist.name || 'Untitled Playlist',

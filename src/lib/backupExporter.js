@@ -73,7 +73,7 @@ function buildLikedSongsCsv(likedSongs) {
 }
 
 function buildFollowedArtistsCsv(followedArtists) {
-  const rows = [['artist_id', 'name', 'genres', 'popularity', 'followers', 'spotify_url']];
+  const rows = [['artist_id', 'name', 'genres', 'popularity', 'spotify_url']];
 
   for (const artist of followedArtists) {
     rows.push([
@@ -81,7 +81,6 @@ function buildFollowedArtistsCsv(followedArtists) {
       artist.name,
       (artist.genres || []).join('; '),
       artist.popularity,
-      artist.followers,
       artist.spotifyUrl
     ]);
   }
@@ -232,7 +231,6 @@ function buildReportHtml(payload) {
       <tr>
         <td>${escapeHtml(artist.name)}</td>
         <td>${escapeHtml((artist.genres || []).join(', '))}</td>
-        <td>${artist.followers || 0}</td>
         <td>${artist.popularity || 0}</td>
       </tr>`
     )
@@ -317,7 +315,7 @@ function buildReportHtml(payload) {
         <p class="hint">Showing first 200 artists. Full data is in CSV and JSON files.</p>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Artist</th><th>Genres</th><th>Followers</th><th>Popularity</th></tr></thead>
+            <thead><tr><th>Artist</th><th>Genres</th><th>Popularity</th></tr></thead>
             <tbody>${artistRows}</tbody>
           </table>
         </div>
